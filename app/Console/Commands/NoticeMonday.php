@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Console\Commands;
+use App\Http\Controllers\noticeController;
+
+use Illuminate\Console\Command;
+
+class NoticeMonday extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'app:notice-monday';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Command description';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+         // ????? logic ??????
+        app(noticeController::class)->notice_monday();
+        $this->info('Notice Monday executed');
+    }
+}
