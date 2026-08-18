@@ -2893,7 +2893,7 @@ if(!is_null($events)){
                   $sequentsteps_insert =  (new SqlController)->sequentsteps_update($user,$seqcode,$nextseqcode);
                 }
                
-            }elseif ($userMessage == 'test'  ) {
+            }elseif ($userMessage == 'test1'  ) {
                   $case = 1;
                   (new ReplyMessageController)->replymessage7($replyToken,$user);
                   // $seqcode = '3009';
