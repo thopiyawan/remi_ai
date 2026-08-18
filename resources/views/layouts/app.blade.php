@@ -116,8 +116,8 @@
 		<img src="https://health-track.in.th/remi_ai/css/remi.png" width="100%" height="100%">
 	  </a>
 	  <a class="navbar-brand" href="#">REMI</a>
-	  <a class="navbar-brand" href="/dashboard">Dashboard</a>
-	  <a class="navbar-brand navbar-right" href="/logout">Logout &nbsp;</a>	  
+	  <a class="navbar-brand" href="/remi_ai/dashboard">Dashboard</a>
+	  <a class="navbar-brand navbar-right" href="/remi_ai/logout">Logout &nbsp;</a>	  
 	</nav>
 	@endif
 	
