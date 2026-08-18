@@ -120,14 +120,14 @@ button:disabled {
     document.getElementById("lastname").innerHTML = lastname;
     }).catch(err => console.error(err));
     }
-    liff.init({ liffId: "1656991660-K8bDpjZ9" }, () => {
+    // liff.init({ liffId: "1656991660-K8bDpjZ9" }, () => {
+    liff.init({ liffId: "1656991660-3zNjIZSh" }, () => {
     if (liff.isLoggedIn()) {
     runApp()
     } else {
     liff.login();
     }
     }, err => console.error(err.code, error.message));      
-
     };
 </script>
 </body>
