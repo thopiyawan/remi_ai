@@ -4,7 +4,7 @@
 
    
 <div class="container">
-    <form method="POST" action="/doctor_register">
+    <form method="POST" action="/emi_ai/doctor_register">
         {{ csrf_field() }}
 
 <div class="container">

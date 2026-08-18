@@ -3,7 +3,7 @@
 <title>Student Management | Edit</title>
 </head>
 <body>
-<form action = "/edit/<?php echo $users->doctor_id; ?>" method = "post">
+<form action = "/remi_ai/edit/<?php echo $users->doctor_id; ?>" method = "post">
 <input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>">
 <table>
 <tr>
