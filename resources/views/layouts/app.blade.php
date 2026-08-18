@@ -7,7 +7,7 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>REMI</title>
-	<link rel=icon href="https://health-track.in.th/css/remi.png">
+	<link rel=icon href="https://health-track.in.th/remi_ai/css/remi.png">
     <!-- Scripts -->
     <script src="{{ asset('js/app.js') }}" defer></script>
 
@@ -113,7 +113,7 @@
 	@if (Session::get('doctor_name'))
 	<nav class="navbar navbar-dark bg-primary fixed-top">
 	  <a class="navbar-brand" href="#">
-		<img src="https://health-track.in.th/css/remi.png" width="100%" height="100%">
+		<img src="https://health-track.in.th/remi_ai/css/remi.png" width="100%" height="100%">
 	  </a>
 	  <a class="navbar-brand" href="#">REMI</a>
 	  <a class="navbar-brand" href="/dashboard">Dashboard</a>
