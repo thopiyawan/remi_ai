@@ -797,12 +797,12 @@ class ReplyMessageController extends Controller
                                 1 => 
                                 array (
                                   'type' => 'image',
-                                  'url' => 'https://health-track.in.th/food/food.png',
+                                  'url' => 'https://health-track.in.th/remi_ai/food/food.png',
                                   'aspectMode' => 'cover',
                                   'action' => 
                                   array (
                                     'type' => 'uri',
-                                    'uri' => 'https://health-track.in.th/food/food.png',
+                                    'uri' => 'https://health-track.in.th/remi_ai/food/food.png',
                                   ),
                                   'size' => 'xxl',
                                 ),
@@ -885,7 +885,7 @@ class ReplyMessageController extends Controller
                             // ),
                             new UriTemplateActionBuilder(
                                           'กราฟน้ำหนัก', // ข้อความแสดงในปุ่ม
-                                          'https://health-track.in.th/graph/'.$user
+                                          'https://health-track.in.th/remi_ai/graph/'.$user
                                           ),
                             new MessageTemplateActionBuilder(
                                 'ทารกในครรภ์',// ข้อความแสดงในปุ่ม
@@ -908,13 +908,13 @@ class ReplyMessageController extends Controller
                                     new CarouselColumnTemplateBuilder(
                                         'ขณะนี้คุณมีอายุครรภ์'.$preg_week.'สัปดาห์',
                                          $w ,
-                                        'https://health-track.in.th/week/'.$preg_week.'.jpg',
+                                        'https://health-track.in.th/remi_ai/week/'.$preg_week.'.jpg',
                                         $actionBuilder1
                                     ),
                                     new CarouselColumnTemplateBuilder(
                                         'จำนวนแคลอรี่ที่คุณต้องการต่อวันคือ '.$cal,
                                         'รายละเอียดการรับประทานอาหารสามารถกดปุ่มด้านล่างได้เลยค่ะ',
-                                        'https://health-track.in.th/food/1_'.$result.'.jpg',
+                                        'https://health-track.in.th/remi_ai/food/1_'.$result.'.jpg',
                                         $actionBuilder2
                                     ),                                        
                                 )
@@ -1087,7 +1087,7 @@ class ReplyMessageController extends Controller
                                           )
                                          );
 
-                    $imageUrl = 'https://health-track.in.th/week/'.$preg_week.'.jpg';
+                    $imageUrl = 'https://health-track.in.th/remi_ai/week/'.$preg_week.'.jpg';
                     $textMessageBuilder = new TemplateMessageBuilder('สรุปข้อมูล',
                      new ButtonTemplateBuilder(
                                'ขณะนี้คุณแม่มีอายุครรภ์'.$preg_week.'สัปดาห์', // กำหนดหัวเรื่อง
@@ -1215,66 +1215,66 @@ class ReplyMessageController extends Controller
                        new ImageCarouselTemplateBuilder(
                          array(
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/f_1.jpg',
+                                'https://health-track.in.th/remi_ai/food/f_1.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/f_1.jpg'
+                                'https://health-track.in.th/remi_ai/food/f_1.jpg'
                                )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/f_2.jpg',
+                                'https://health-track.in.th/remi_ai/food/f_2.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/f_2.jpg'
+                                'https://health-track.in.th/remi_ai/food/f_2.jpg'
                                 )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'httpshttps://health-track.in.th/food/f_3.jpg',
+                                'httpshttps://health-track.in.th/remi_ai/food/f_3.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/f_3.jpg'
+                                'https://health-track.in.th/remi_ai/food/f_3.jpg'
                                 )
                               ),
                                  new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/f_4.jpg',
+                                'https://health-track.in.th/remi_ai/food/f_4.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https:https://health-track.in.th/food/f_4.jpg'
+                                'https:https://health-track.in.th/remi_ai/food/f_4.jpg'
                                )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/f_5.jpg',
+                                'https://health-track.in.th/remi_ai/food/f_5.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'htthttps://health-track.in.th/food/f_5.jpg'
+                                'htthttps://health-track.in.th/remi_ai/food/f_5.jpg'
                                 )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/f_6.jpg',
+                                'https://health-track.in.th/remi_ai/food/f_6.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/f_6.jpg'
+                                'https://health-track.in.th/remi_ai/food/f_6.jpg'
                                 )
                               ),    
                                new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/n_1.jpg',
+                                'https://health-track.in.th/remi_ai/food/n_1.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/n_1.jpg'
+                                'https://health-track.in.th/remi_ai/food/n_1.jpg'
                                )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/n_2.jpg',
+                                'https://health-track.in.th/remi_ai/food/n_2.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/n_2.jpg'
+                                'https://health-track.in.th/remi_ai/food/n_2.jpg'
                                 )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/food/n_3.jpg',
+                                'https://health-track.in.th/remi_ai/food/n_3.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/food/n_3.jpg'
+                                'https://health-track.in.th/remi_ai/food/n_3.jpg'
                                 )
                               ),                                       
                         )
@@ -1286,21 +1286,21 @@ class ReplyMessageController extends Controller
                        new ImageCarouselTemplateBuilder(
                          array(
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/manual/exercise.jpg',
+                                'https://health-track.in.th/remi_ai/manual/exercise.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
                                 'http://www.raipoong.com/content/detail.php?section=12&category=26&id=467'
                                )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/manual/exercise2.jpg',
+                                'https://health-track.in.th/remi_ai/manual/exercise2.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
                                 'http://www.raipoong.com/content/detail.php?section=12&category=26&id=467'
                                 )
                               ),
                               new ImageCarouselColumnTemplateBuilder(
-                                'https://health-track.in.th/manual/exercise3.jpg',
+                                'https://health-track.in.th/remi_ai/manual/exercise3.jpg',
                               new UriTemplateActionBuilder(
                                 'Uri Template', // ข้อความแสดงในปุ่ม
                                 'http://www.raipoong.com/content/detail.php?section=12&category=26&id=467'
@@ -1350,7 +1350,7 @@ class ReplyMessageController extends Controller
                   $textMessage1 = new TextMessageBuilder($text1);
                     // $imageMapUrl = 'https://remi.softbot.ai/food/new_nutri2.jpg?_ignored=';
                     //  $imageMapUrl = 'https://health-track.in.th/image/mapmess.jpg?_ignored=';
-                    $imageMapUrl = 'https://health-track.in.th/Line_menu/knowlaged_menu.png?_ignored=';
+                    $imageMapUrl = 'https://health-track.in.th/remi_ai/Line_menu/knowlaged_menu.png?_ignored=';
                     $textMessage2 = new ImagemapMessageBuilder(
                         $imageMapUrl,
                         'แนะนำอาหาร',
@@ -1434,7 +1434,7 @@ class ReplyMessageController extends Controller
                     $text1 = 'อยากรู้อะไรกดเลยค่ะ';
                     $textMessage1 = new TextMessageBuilder($text1);
                    // $imageMapUrl = 'https://health-track.in.th/food/exer1.jpg?_ignored=';
-                    $imageMapUrl = 'https://health-track.in.th/Line_menu/exercise_menu.png?_ignored=';
+                    $imageMapUrl = 'https://health-track.in.th/remi_ai/Line_menu/exercise_menu.png?_ignored=';
                     $textMessage2 = new ImagemapMessageBuilder(
                         $imageMapUrl,
                         'แนะนำการออกกำลังกาย',
@@ -1519,8 +1519,8 @@ class ReplyMessageController extends Controller
                     break;   
 
                     case 21 :  
-                    $picFullSize = 'https://health-track.in.th/food/ex'.$userMessage.'.jpg';
-                    $picThumbnail = 'https://health-track.in.th/food/ex'.$userMessage.'.jpg';
+                    $picFullSize = 'https://health-track.in.th/remi_ai/food/ex'.$userMessage.'.jpg';
+                    $picThumbnail = 'https://health-track.in.th/remi_ai/food/ex'.$userMessage.'.jpg';
                     $textMessage1 = new ImageMessageBuilder($picFullSize,$picThumbnail);
                     // $picThumbnail = 'https://www.youtube.com/watch?v=eUvG5U8g6SY&list=PLWa93dkeDtZ_CidjnWp-EECxCA5IDjOa7&index=1'.$userMessage.'.mp4';
                     // $videoUrl = 'https://remi.softbot.ai/video/'.$userMessage.'.mp4';             
@@ -1713,7 +1713,7 @@ class ReplyMessageController extends Controller
                             $actionBuilder4 = array(
                             new UriTemplateActionBuilder(
                                 'กราฟน้ำหนัก', // ข้อความแสดงในปุ่ม
-                                'https://health-track.in.th/graph/'.$userMessage
+                                'https://health-track.in.th/remi_ai/graph/'.$userMessage
                             ),
                             new MessageTemplateActionBuilder(
                                 'น้ำหนักตัวที่เหมาะสม',// ข้อความแสดงในปุ่ม
@@ -1747,13 +1747,13 @@ class ReplyMessageController extends Controller
                                     new CarouselColumnTemplateBuilder(
                                         'ข้อมูลคุณแม่',
                                         'ข้อมูลส่วนตัวของคุณแม่'."\n".'ขณะนี้คุณแม่มีอายุครรภ์'.$preg_week.'สัปดาห์',
-                                        'https://health-track.in.th/image/profile_card1.png',
+                                        'https://health-track.in.th/remi_ai/image/profile_card1.png',
                                         $actionBuilder3
                                     ),    
                                     new CarouselColumnTemplateBuilder(
                                         'ข้อมูลโภชนาการของคุณแม่',
                                         $w."\n". 'จำนวนแคลอรี่ที่คุณแม่ต้องการต่อวันคือ '.$cal,
-                                        'https://health-track.in.th/image/food_c2.png',
+                                        'https://health-track.in.th/remi_ai/image/food_c2.png',
                                         $actionBuilder4
                                     ),                  
                                     // new CarouselColumnTemplateBuilder(
@@ -2096,10 +2096,10 @@ class ReplyMessageController extends Controller
                                   foreach ($reward_gift as $reward) {
                                   $columnTemplateBuilder = 
                                         new ImageCarouselColumnTemplateBuilder(
-                                           'https://health-track.in.th/reward_gift/'.$reward['code_gift'].'.jpg',
+                                           'https://health-track.in.th/remi_ai/reward_gift/'.$reward['code_gift'].'.jpg',
                                             new UriTemplateActionBuilder(
                                                 'link', // ข้อความแสดงในปุ่ม
-                                                'hhttps://health-track.in.th/reward_gift/'.$reward['code_gift'].'.jpg'
+                                                'hhttps://health-track.in.th/remi_ai/reward_gift/'.$reward['code_gift'].'.jpg'
                                             )
                                         );
 
@@ -2121,7 +2121,7 @@ class ReplyMessageController extends Controller
                     $columnTemplateBuilder = new CarouselColumnTemplateBuilder(
                                   $foodmenu['name_food'], 
                                   $foodmenu['cal'],
-                                  'https://health-track.in.th/menu/'.$foodmenu['img'].'.jpg',
+                                  'https://health-track.in.th/remi_ai/menu/'.$foodmenu['img'].'.jpg',
                                   [
                                             new PostbackTemplateActionBuilder(
                                             'คำแนะนำ', // ข้อความแสดงในปุ่ม
@@ -2188,7 +2188,7 @@ class ReplyMessageController extends Controller
                     $columnTemplateBuilder = new CarouselColumnTemplateBuilder(
                                   $pregnants_list['title'], 
                                   'รายละเอียดลูกน้อย',
-                                  'https://health-track.in.th/week/'.$pregnants_list['week'].'.jpg',
+                                  'https://health-track.in.th/remi_ai/week/'.$pregnants_list['week'].'.jpg',
                           [
                             new MessageTemplateActionBuilder('ทารกในครรภ์', 'ลูกน้อยสัปดาห์ที่:'.$pregnants_list['week'])
                           ,]
@@ -2227,18 +2227,18 @@ class ReplyMessageController extends Controller
                   $text1 = 'มาบันทึกประจำวันกันค่ะ';
                   $textMessage1 = new TextMessageBuilder($text1);
                     // $imageMapUrl = 'https://remi.softbot.ai/food/new_nutri2.jpg?_ignored=';
-                    $imageMapUrl = 'https://health-track.in.th/Line_menu/diary.png?_ignored='; 
+                    $imageMapUrl = 'https://health-track.in.th/remi_ai/Line_menu/diary.png?_ignored='; 
                     $textMessage2 = new ImagemapMessageBuilder(
                         $imageMapUrl,
                         'แนะนำอาหาร',
                         new BaseSizeBuilder(1040,1040),
                         array(
                             new ImagemapUriActionBuilder(
-                              'https://health-track.in.th/record_diary/'.$user,
+                              'https://health-track.in.th/remi_ai/record_diary/'.$user,
                                 new AreaBuilder(49,190,461,242)
                                 ),
                             new ImagemapUriActionBuilder(
-                              'https://health-track.in.th/graph/'.$user,
+                              'https://health-track.in.th/remi_ai/graph/'.$user,
                                 new AreaBuilder(538,183,463,245)
                                 ),
   
@@ -2247,13 +2247,13 @@ class ReplyMessageController extends Controller
                                 new AreaBuilder(39,450,481,241)
                                 ),
                             new ImagemapUriActionBuilder(
-                              'https://health-track.in.th/graph_sugar_blood/'.$user,
+                              'https://health-track.in.th/remi_ai/graph_sugar_blood/'.$user,
                                 new AreaBuilder(538,442,459,239)
                                 ),
 
 
                             new ImagemapUriActionBuilder(
-                              'https://health-track.in.th/babykicks/'.$user,
+                              'https://health-track.in.th/remi_ai/babykicks/'.$user,
                                 new AreaBuilder(35,706,477,239)
                                 ),
                             new ImagemapUriActionBuilder(
@@ -2391,7 +2391,7 @@ public function replymessage5($replyToken,$user)
                     $columnTemplateBuilder = new CarouselColumnTemplateBuilder(
                                   $reward['name_gift'], 
                                   'ใช้ '.$reward['point'].' แต้มในการแลก',
-                                  'https://health-track.in.th/reward_gift/'.$reward['code_gift'].'.jpg',
+                                  'https://health-track.in.th/remi_ai/reward_gift/'.$reward['code_gift'].'.jpg',
                                   [
                                             new PostbackTemplateActionBuilder(
                                             'แลกของรางวัล', // ข้อความแสดงในปุ่ม
@@ -2444,7 +2444,7 @@ public function replymessage5($replyToken,$user)
                     $columnTemplateBuilder = new CarouselColumnTemplateBuilder(
                         $reward['name_gift'], 
                         'จำนวน: X '.$reward['total'],
-                        'https://health-track.in.th/card/badge.png',
+                        'https://health-track.in.th/remi_ai/card/badge.png',
                         [
                             new MessageTemplateActionBuilder('รับของรางวัล', $reward['code_gift'])
                         ,]
@@ -2479,9 +2479,9 @@ public function replymessage_food($replyToken,$user)
                     $columnTemplateBuilder = new CarouselColumnTemplateBuilder(
                        NULL, 
                         'อาหาร',
-                        'https://health-track.in.th/sug_food/'.$reward['name_img'],
+                        'https://health-track.in.th/remi_ai/sug_food/'.$reward['name_img'],
                         [
-                            new UriTemplateActionBuilder('link','https://health-track.in.th/sug_food/'.$reward['name_img'])
+                            new UriTemplateActionBuilder('link','https://health-track.in.th/remi_ai/sug_food/'.$reward['name_img'])
                         ,]
                     ); 
                     array_push($columnTemplateBuilders, $columnTemplateBuilder);
@@ -2515,10 +2515,10 @@ public function replymessage_food1($replyToken,$user)
           foreach ($rewards as $reward) {
           $columnTemplateBuilder = 
                 new ImageCarouselColumnTemplateBuilder(
-                     'https://health-track.in.th/sug_food/'.$reward['name_img'],
+                     'https://health-track.in.th/remi_ai/sug_food/'.$reward['name_img'],
                     new UriTemplateActionBuilder(
                         'link', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/sug_food/'.$reward['name_img']
+                        'https://health-track.in.th/remi_ai/sug_food/'.$reward['name_img']
                     )
                 );
 
@@ -2546,38 +2546,38 @@ public function replymessage_food1($replyToken,$user)
         new ImageCarouselTemplateBuilder(
             array(
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/1-467-pic20160128170301.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/1-467-pic20160128170301.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/1-467-pic20160128170301.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/1-467-pic20160128170301.jpg'
                     )
                 ),
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/2-467-pic20160128170348.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/2-467-pic20160128170348.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/2-467-pic20160128170348.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/2-467-pic20160128170348.jpg'
                     )
                 ),
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/3-467-pic20160128170601.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/3-467-pic20160128170601.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/3-467-pic20160128170601.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/3-467-pic20160128170601.jpg'
                     )
                 ),
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/4-467-pic20160128170609.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/4-467-pic20160128170609.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/4-467-pic20160128170609.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/4-467-pic20160128170609.jpg'
                     )
                 ),
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/5-467-pic20160128170618.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/5-467-pic20160128170618.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/5-467-pic20160128170618.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/5-467-pic20160128170618.jpg'
                     )
                 )                                       
             )
@@ -2598,17 +2598,17 @@ public function replymessage_food1($replyToken,$user)
         new ImageCarouselTemplateBuilder(
             array(
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/6-467-pic20160128170626.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/6-467-pic20160128170626.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/6-467-pic20160128170626.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/6-467-pic20160128170626.jpg'
                     )
                 ),
                 new ImageCarouselColumnTemplateBuilder(
-                    'https://health-track.in.th/knowledge/7-467-pic20160128170631.jpg',
+                    'https://health-track.in.th/remi_ai/knowledge/7-467-pic20160128170631.jpg',
                     new UriTemplateActionBuilder(
                         'Uri', // ข้อความแสดงในปุ่ม
-                        'https://health-track.in.th/knowledge/7-467-pic20160128170631.jpg'
+                        'https://health-track.in.th/remi_ai/knowledge/7-467-pic20160128170631.jpg'
                     )
                 ),                                      
             )
@@ -4816,13 +4816,13 @@ public function replymessage_food1($replyToken,$user)
       // การใช้งาน postback action
       $graphbs =  new UriTemplateActionBuilder(
         'กราฟน้ำตาล', // ข้อความแสดงในปุ่ม
-        'https://health-track.in.th/graph_sugar_blood/'.$user
+        'https://health-track.in.th/remi_ai/graph_sugar_blood/'.$user
       );
       // การใช้งาน message action
       $fetal_movement =  new UriTemplateActionBuilder(
         'นับลูกดิ้น', // ข้อความแสดงในปุ่ม
         // 'https://liff.line.me/1656991660-kq47bAMD'
-        'https://health-track.in.th/babykicks/'.$user
+        'https://health-track.in.th/remi_ai/babykicks/'.$user
         
       );
       // การใช้งาน datetime picker action
@@ -4838,7 +4838,7 @@ public function replymessage_food1($replyToken,$user)
       $weight = new UriTemplateActionBuilder(
         'บันทึกอาหาร', // ข้อความแสดงในปุ่ม
         // 'https://health-track.in.th/record_weight/'.$user
-        'https://health-track.in.th/record_diary/'.$user
+        'https://health-track.in.th/remi_ai/record_diary/'.$user
         
       );
 
