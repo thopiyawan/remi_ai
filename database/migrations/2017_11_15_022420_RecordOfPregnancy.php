@@ -20,11 +20,11 @@ class RecordOfPregnancy extends Migration
             $table->string('user_id');
             $table->integer('preg_week');
             $table->string('preg_weight');
-            $table->string('data_to_ulife');
             // $table->timestamp('created_at')->nullable();
             // $table->timestamp('updated_at')->nullable();
             $table->integer('deleted_status');
             $table->integer('weight_status')->nullable();
+            $table->string('data_to_ulife');
             $table->timestamps();
             $table->softDeletes()->nullable();
 

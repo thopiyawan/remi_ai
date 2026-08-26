@@ -38,8 +38,6 @@ class UsersRegister extends Migration
             // $table->timestamp('updated_at')->nullable();
             $table->string('dateofbirth',10);
             $table->string('ulife_connect');
-            $table->timestamps();
-            $table->softDeletes()->nullable();
             $table->tinyInteger('compli_diabete')->unsigned();
             $table->tinyInteger('compli_hypertension')->unsigned();
             $table->tinyInteger('compli_preterm_birth')->unsigned();
@@ -47,6 +45,9 @@ class UsersRegister extends Migration
             $table->string('preg_week_str');
             $table->tinyInteger('type_preg_week')->unsigned();
             $table->string('due_date');
+            $table->string('calorie');
+            $table->timestamps();
+            $table->softDeletes()->nullable();
             //$table->timestamp('updated_at');
             //$table->rememberToken(); 
             //$table->timestamps();

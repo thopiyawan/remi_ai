@@ -23,10 +23,14 @@ class Tracker extends Migration
             $table->string('dessert_din');
             $table->string('exercise');
             $table->string('vitamin');
-            $table->timestamps();
+            $table->string('date');
+            $table->string('time_breakfast');
+            $table->string('time_lunch');
+            $table->string('time_dinner');
             $table->string('data_to_ulife');
             // $table->timestamp('created_at')->nullable();
             // $table->timestamp('updated_at')->nullable();
+            $table->timestamps();
             $table->softDeletes()->nullable();
            
         });
