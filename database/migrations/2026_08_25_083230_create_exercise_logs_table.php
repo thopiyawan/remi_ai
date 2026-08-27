@@ -37,14 +37,17 @@ return new class extends Migration
             // patient, doctor, nutritionist, system
             $table->string('created_source', 30)->default('patient');
 
-            $table->foreignId('created_by')
-                ->nullable()
-                ->constrained('users_register')
+            $table->string('created_by', 50)->nullable();
+            $table->string('updated_by', 50)->nullable();
+
+            $table->foreign('created_by')
+                ->references('id')
+                ->on('users')
                 ->nullOnDelete();
 
-            $table->foreignId('updated_by')
-                ->nullable()
-                ->constrained('users_register')
+            $table->foreign('updated_by')
+                ->references('id')
+                ->on('users')
                 ->nullOnDelete();
 
             $table->timestamps();

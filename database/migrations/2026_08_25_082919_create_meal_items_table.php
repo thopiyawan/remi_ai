@@ -80,14 +80,17 @@ return new class extends Migration
              * created_by / updated_by เป็น NULL ได้
              * เพราะ AI/System ไม่มี users.id
              */
-            $table->foreignId('created_by')
-                ->nullable()
-                ->constrained('users')
+            $table->string('created_by', 50)->nullable();
+            $table->string('updated_by', 50)->nullable();
+
+            $table->foreign('created_by')
+                ->references('id')
+                ->on('users')
                 ->nullOnDelete();
 
-            $table->foreignId('updated_by')
-                ->nullable()
-                ->constrained('users')
+            $table->foreign('updated_by')
+                ->references('id')
+                ->on('users')
                 ->nullOnDelete();
 
             $table->timestamps();
