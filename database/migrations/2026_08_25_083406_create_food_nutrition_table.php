@@ -54,7 +54,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index(['food_id', 'status']);
+            $table->index(['status']);
         });
     }
 
