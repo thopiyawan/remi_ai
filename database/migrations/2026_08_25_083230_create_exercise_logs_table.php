@@ -44,7 +44,7 @@ return new class extends Migration
 
             $table->foreignId('updated_by')
                 ->nullable()
-                ->constrained('users')
+                ->constrained('users_register')
                 ->nullOnDelete();
 
             $table->timestamps();
