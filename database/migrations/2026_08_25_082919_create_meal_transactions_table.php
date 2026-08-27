@@ -16,7 +16,7 @@ return new class extends Migration
 
             // ผู้รับประทานอาหาร
             $table->foreignId('user_id')
-                ->constrained('users')
+                ->constrained('users_register')
                 ->restrictOnDelete();
 
             // breakfast, lunch, dinner, snack

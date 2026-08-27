@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('user_id')
-                ->constrained('users')
+                ->constrained('users_register')
                 ->restrictOnDelete();
 
             // เดิน, วิ่ง, โยคะ, ว่ายน้ำ ฯลฯ
@@ -39,7 +39,7 @@ return new class extends Migration
 
             $table->foreignId('created_by')
                 ->nullable()
-                ->constrained('users')
+                ->constrained('users_register')
                 ->nullOnDelete();
 
             $table->foreignId('updated_by')

@@ -86,10 +86,10 @@ return new class extends Migration
              */
             $table->string('actor_type', 30);
 
-            $table->foreignId('actor_id')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+            // $table->foreignId('actor_id')
+            //     ->nullable()
+            //     ->constrained('users')
+            //     ->nullOnDelete();
 
             $table->timestamp('created_at')->useCurrent();
 

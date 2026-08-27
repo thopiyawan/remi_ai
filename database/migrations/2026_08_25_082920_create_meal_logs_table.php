@@ -30,10 +30,10 @@ return new class extends Migration
                 // patient, ai, nutritionist, doctor, system
                 $table->string('actor_type', 30);
 
-                $table->foreignId('actor_id')
-                    ->nullable()
-                    ->constrained('users')
-                    ->nullOnDelete();
+                // $table->foreignId('actor_id')
+                //     ->nullable()
+                //     ->constrained('users')
+                //     ->nullOnDelete();
 
                 $table->string('change_reason', 100)->nullable();
                 $table->text('note')->nullable();

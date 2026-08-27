@@ -20,7 +20,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('user_id')
-                ->constrained('users')
+                ->constrained('users_register')
                 ->restrictOnDelete();
 
             $table->foreignId('patient_insulin_plan_id')
