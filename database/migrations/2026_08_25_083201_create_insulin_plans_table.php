@@ -53,13 +53,8 @@ return new class extends Migration
                 * replaced
                 */
                 $table->string('status', 30)->default('active');
-
-                // ผู้กำหนดแผน
-                $table->foreignId('prescribed_by')
-                    ->nullable()
-                    ->constrained('users')
-                    ->nullOnDelete();
-
+                $table->string('prescribed_by');
+                
                 $table->text('note')->nullable();
 
                 $table->timestamps();
