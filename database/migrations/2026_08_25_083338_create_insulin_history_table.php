@@ -23,9 +23,9 @@ return new class extends Migration
                 ->constrained('users_register')
                 ->restrictOnDelete();
 
-            $table->foreignId('patient_insulin_plan_id')
+            $table->foreignId('insulin_plan_id')
                 ->nullable()
-                ->constrained('patient_insulin_plans')
+                ->constrained('insulin_plans')
                 ->nullOnDelete();
 
             $table->foreignId('insulin_id')
