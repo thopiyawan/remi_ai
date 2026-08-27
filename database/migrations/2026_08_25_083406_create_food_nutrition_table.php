@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('food_nutritions', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('food_id')
-                ->constrained('foods')
-                ->restrictOnDelete();
+            // $table->foreignId('food_id')
+            //     ->constrained('foods')
+            //     ->restrictOnDelete();
 
             // ค่ามาตรฐานต่อ 100 กรัม
             $table->decimal('reference_weight_g', 8, 2);
