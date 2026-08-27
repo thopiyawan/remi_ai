@@ -83,16 +83,6 @@ return new class extends Migration
             $table->string('created_by', 50)->nullable();
             $table->string('updated_by', 50)->nullable();
 
-            $table->foreign('created_by')
-                ->references('id')
-                ->on('users')
-                ->nullOnDelete();
-
-            $table->foreign('updated_by')
-                ->references('id')
-                ->on('users')
-                ->nullOnDelete();
-
             $table->timestamps();
 
             /*
