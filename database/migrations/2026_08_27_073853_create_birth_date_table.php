@@ -11,9 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('birth_date', function (Blueprint $table) {
-            $table->id();
+        // Schema::create('birth_date', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->timestamps();
+        // });
+          Schema::create('birth_date', function (Blueprint $table) {
+            $table->string('user_id', 255);
+            $table->string('birthdate', 255);
+            $table->integer('week');
+
             $table->timestamps();
+
+            $table->index('user_id');
         });
     }
 
