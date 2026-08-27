@@ -28,10 +28,10 @@ return new class extends Migration
              * AI บางครั้งอาจวิเคราะห์อาหารที่ยังไม่มีใน master
              * จึงอนุญาต NULL
              */
-            $table->foreignId('food_id')
-                ->nullable()
-                ->constrained('foods')
-                ->nullOnDelete();
+            // $table->foreignId('food_id')
+            //     ->nullable()
+            //     ->constrained('foods')
+            //     ->nullOnDelete();
 
             // ชื่ออาหาร ณ ตอนที่บันทึก
             // เก็บแยกไว้แม้มี food_id เพื่อเป็น Snapshot
