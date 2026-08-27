@@ -92,7 +92,6 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index('meal_transaction_id');
-            $table->index('food_id');
             $table->index('created_source');
         });
         
