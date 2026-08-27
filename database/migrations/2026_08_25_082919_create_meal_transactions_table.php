@@ -61,8 +61,6 @@ return new class extends Migration
             $table->string('gdm_risk', 30)->nullable();
             $table->text('recommendation')->nullable();
 
-            $table->timestamps();
-
             // ใช้บ่อยในหน้า History / Dashboard
             $table->index(['user_id', 'meal_date']);
             $table->index('ai_status');
