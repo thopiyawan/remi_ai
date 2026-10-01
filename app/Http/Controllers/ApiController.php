@@ -904,406 +904,387 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
     private const FOLLOW_UP_WEIGHT_CODES = [
         // ใส่รหัสน้ำหนักที่ต้องติดตาม
     ];
-   public function dashboard_overview(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'task_page' => 'sometimes|integer|min:1',
-            'follow_up_page' => 'sometimes|integer|min:1',
-            'per_page' => 'sometimes|integer|min:1|max:100',
-        ]);
+   public function get_dashboard()
+{
+    $doctor_id = 'test';
 
-        $perPage = (int) ($validated['per_page'] ?? 20);
+    if ($doctor_id === null || $doctor_id === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
 
-        $today = CarbonImmutable::now('Asia/Bangkok')->startOfDay();
-        $tomorrow = $today->addDay();
-        $sevenDaysAgo = $today->subDays(6);
+    /*
+     * ปรับรหัสให้ตรงกับค่าที่ระบบบันทึกจริง
+     * SQL ไม่ได้ระบุความหมายของรหัสเหล่านี้
+     */
+    $waitingStatus = 0;
+    $continuingStatus = 1;
+    $activeStatuses = [$waitingStatus, $continuingStatus];
 
-        /*
-         * แปลงขอบเขตเวลาเป็น timezone ที่ใช้เก็บในฐานข้อมูล
-         * ตัวอย่าง: DB_TIMEZONE=UTC หรือ Asia/Bangkok
-         */
-        $dbTimezone = config('dashboard.db_timezone', 'UTC');
+    $aiCompleted = 'completed';
+    $reviewPending = 'pending';
+    $complicationYes = 1;
 
-        $startToday = $today->setTimezone($dbTimezone)->toDateTimeString();
-        $endToday = $tomorrow->setTimezone($dbTimezone)->toDateTimeString();
-        $startSevenDays = $sevenDaysAgo
-            ->setTimezone($dbTimezone)
-            ->toDateTimeString();
+    // เติมความหมายของ weight_status ตามระบบจริง
+    $weightLabels = [
+        // 0 => 'ปกติ',
+        // 1 => '...',
+    ];
 
-        // ทุกส่วนของ dashboard ใช้ผู้รับบริการ active ที่ไม่ถูก soft delete
-        $active = DB::table('users_register as p')
-            ->whereNull('p.deleted_at')
-            ->whereIn('p.status', self::ACTIVE_STATUSES);
+    /*
+     * เวลาแสดงผลใช้ประเทศไทย
+     * ตั้ง config/dashboard.php ให้ตรงกับ timezone ที่ DB เก็บ
+     * รองรับ UTC หรือ Asia/Bangkok
+     */
+    $dbTimezone = config('dashboard.db_timezone', 'UTC');
 
-        /*
-         * 1. ข้อมูลผู้รับบริการพื้นฐาน
-         * จำนวนทั้งหมด = ผู้รับบริการทุกสถานะที่ไม่ถูกลบ
-         */
-        $patientSummary = [
-            'total' => DB::table('users_register')
-                ->whereNull('deleted_at')
-                ->count(),
+    $today = CarbonImmutable::now('Asia/Bangkok')->startOfDay();
+    $firstDay = $today->subDays(6);
 
-            'new_today' => DB::table('users_register')
-                ->whereNull('deleted_at')
-                ->where('created_at', '>=', $startToday)
-                ->where('created_at', '<', $endToday)
-                ->count(),
+    $todayStart = $today
+        ->setTimezone($dbTimezone)
+        ->toDateTimeString();
 
-            'active_total' => (clone $active)->count(),
+    $tomorrowStart = $today->addDay()
+        ->setTimezone($dbTimezone)
+        ->toDateTimeString();
 
-            'waiting' => (clone $active)
-                ->where('p.status', self::WAITING_STATUS)
-                ->count(),
+    $sevenDaysStart = $firstDay
+        ->setTimezone($dbTimezone)
+        ->toDateTimeString();
 
-            'continuing_care' => (clone $active)
-                ->where('p.status', self::CONTINUING_STATUS)
-                ->count(),
-        ];
+    /*
+     * คนไข้ทั้งหมดของแพทย์ที่ไม่ถูกลบ
+     * whereExists ไม่ทำให้คนไข้ซ้ำจากตารางความสัมพันธ์
+     */
+    $patients = DB::table('users_register as p')
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctor_id) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctor_id)
+                ->whereNull('pd.deleted_at');
+        });
 
-        /*
-         * 2. สรุป AI วิเคราะห์อาหาร
-         * นับจำนวนมื้อ ไม่ใช่จำนวน meal_items
-         */
-        $meals = DB::table('meal_transactions as m')
-            ->join('users_register as p', 'p.id', '=', 'm.user_id')
-            ->whereNull('p.deleted_at')
-            ->whereIn('p.status', self::ACTIVE_STATUSES);
+    $activePatients = (clone $patients)
+        ->whereIn('p.status', $activeStatuses);
 
-        $foodSummary = [
-            'total' => (clone $meals)->count(),
+    /*
+     * คีย์สำหรับตารางใหม่และตารางเดิมต่างกัน
+     *
+     * meal_transactions / exercise_logs:
+     * user_id -> users_register.id
+     *
+     * blood_sugar / fetal_movement / RecordOfPregnancy:
+     * user_id -> users_register.user_id
+     */
+    $activeIds = (clone $activePatients)->select('p.id');
+    $activeLineIds = (clone $activePatients)->select('p.user_id');
 
-            'analyzed' => (clone $meals)
-                ->where('m.ai_status', self::AI_COMPLETED)
-                ->count(),
+    // ---------------------------------------
+    // 1. ข้อมูลผู้รับบริการพื้นฐาน
+    // ---------------------------------------
 
-            'waiting_review' => (clone $meals)
-                ->where('m.ai_status', self::AI_COMPLETED)
-                ->where('m.review_status', self::REVIEW_PENDING)
-                ->count(),
-        ];
+    $activeTotal = (clone $activePatients)->count();
 
-        /*
-         * 3. กิจกรรมย้อนหลัง 7 วัน รวมวันนี้
-         * หนึ่งแถวในตารางต้นทาง = หนึ่งกิจกรรม
-         * ใช้ created_at เป็นเวลาบันทึกกิจกรรม
-         *
-         * ไม่นับ meal_items และ logs การแก้ไข เพื่อไม่ให้นับมื้อซ้ำ
-         * vitamin_logs ไม่มี user_id จึงยังนำมานับแยกผู้รับบริการไม่ได้
-         */
-        $activitySources = [
-            ['meal_transactions', 'id', false],
-            ['exercise_logs', 'id', true],
-            ['RecordOfPregnancy', 'user_id', true],
-            ['blood_sugar', 'user_id', false],
-            ['fetal_movement', 'user_id', true],
-        ];
+    $patientSummary = [
+        'total' => (clone $patients)->count(),
 
-        $activityUnion = null;
+        'new_today' => (clone $patients)
+            ->where('p.created_at', '>=', $todayStart)
+            ->where('p.created_at', '<', $tomorrowStart)
+            ->count(),
 
-        foreach ($activitySources as [$table, $patientKey, $softDeletes]) {
-            $query = DB::table("$table as a")
-                ->join('users_register as p', "p.$patientKey", '=', 'a.user_id')
-                ->whereNull('p.deleted_at')
-                ->whereIn('p.status', self::ACTIVE_STATUSES)
-                ->where('a.created_at', '>=', $startSevenDays)
-                ->where('a.created_at', '<', $endToday);
+        'active_total' => $activeTotal,
 
-            if ($softDeletes) {
-                $query->whereNull('a.deleted_at');
-            }
+        'waiting' => (clone $activePatients)
+            ->where('p.status', $waitingStatus)
+            ->count(),
 
-            if ($table === 'RecordOfPregnancy') {
-                $query->where('a.deleted_status', 0);
-            }
+        'continuing_care' => (clone $activePatients)
+            ->where('p.status', $continuingStatus)
+            ->count(),
+    ];
 
-            /*
-             * แปลงเวลาเป็นไทยก่อนจัดกลุ่มรายวัน
-             * Asia/Bangkok = UTC+7 ไม่มี DST
-             * DB_TIMEZONE ต้องเป็น UTC หรือ Asia/Bangkok
-             */
-            $dateExpression = $dbTimezone === 'UTC'
-                ? 'DATE(DATE_ADD(a.created_at, INTERVAL 7 HOUR))'
-                : 'DATE(a.created_at)';
+    // ---------------------------------------
+    // 2. สรุป AI วิเคราะห์อาหาร นับเป็นมื้อ
+    // ---------------------------------------
 
-            $query->selectRaw("$dateExpression as activity_date")
-                ->selectRaw('COUNT(*) as activity_count')
-                ->groupByRaw($dateExpression);
+    $meals = DB::table('meal_transactions as m')
+        ->whereIn('m.user_id', clone $activeIds);
 
-            if ($activityUnion === null) {
-                $activityUnion = $query;
-            } else {
-                $activityUnion->unionAll($query);
-            }
+    $foodSummary = [
+        'total' => (clone $meals)->count(),
+
+        'analyzed' => (clone $meals)
+            ->where('m.ai_status', $aiCompleted)
+            ->count(),
+
+        'waiting_review' => (clone $meals)
+            ->where('m.ai_status', $aiCompleted)
+            ->where('m.review_status', $reviewPending)
+            ->count(),
+    ];
+
+    // ---------------------------------------
+    // 3. กิจกรรมย้อนหลัง 7 วัน รวมวันนี้
+    // หนึ่งแถวที่บันทึก = หนึ่งกิจกรรม
+    // ---------------------------------------
+
+    $activitySources = [
+        ['meal_transactions', 'numeric', false],
+        ['exercise_logs', 'numeric', true],
+        ['blood_sugar', 'line', false],
+        ['fetal_movement', 'line', true],
+        ['RecordOfPregnancy', 'line', true],
+    ];
+
+    $dailyCounts = [];
+
+    foreach ($activitySources as [$table, $keyType, $softDeletes]) {
+        $query = DB::table("$table as a")
+            ->whereIn(
+                'a.user_id',
+                $keyType === 'numeric'
+                    ? clone $activeIds
+                    : clone $activeLineIds
+            )
+            ->where('a.created_at', '>=', $sevenDaysStart)
+            ->where('a.created_at', '<', $tomorrowStart);
+
+        if ($softDeletes) {
+            $query->whereNull('a.deleted_at');
         }
 
-        $activityCounts = DB::query()
-            ->fromSub($activityUnion, 'activity')
-            ->select('activity_date')
-            ->selectRaw('SUM(activity_count) as total')
-            ->groupBy('activity_date')
-            ->pluck('total', 'activity_date');
-
-        $activities = [];
-
-        for ($i = 0; $i < 7; $i++) {
-            $date = $sevenDaysAgo->addDays($i)->toDateString();
-
-            $activities[] = [
-                'date' => $date,
-                'count' => (int) ($activityCounts[$date] ?? 0),
-            ];
+        if ($table === 'RecordOfPregnancy') {
+            $query->where('a.deleted_status', 0);
         }
 
-        /*
-         * น้ำหนักล่าสุด: เรียงตาม created_at แล้ว id
-         * ไม่ใช้ JOIN ทุกแถว เพราะจะทำให้จำนวนผู้รับบริการเพิ่มซ้ำ
-         */
-        $latestWeight = DB::table('RecordOfPregnancy as w')
-            ->whereNull('w.deleted_at')
-            ->where('w.deleted_status', 0)
-            ->whereNotExists(function ($query) {
-                $query->selectRaw('1')
-                    ->from('RecordOfPregnancy as newer')
-                    ->whereColumn('newer.user_id', 'w.user_id')
-                    ->whereNull('newer.deleted_at')
-                    ->where('newer.deleted_status', 0)
-                    ->whereRaw("
-                        COALESCE(newer.created_at, '1000-01-01')
-                            > COALESCE(w.created_at, '1000-01-01')
-                        OR (
-                            COALESCE(newer.created_at, '1000-01-01')
-                                = COALESCE(w.created_at, '1000-01-01')
-                            AND newer.id > w.id
-                        )
-                    ");
-            })
-            ->select(
-                'w.user_id',
-                'w.weight_status',
-                'w.preg_week',
-                'w.preg_weight',
-                'w.created_at',
-                'w.updated_at'
-            );
+        // เปลี่ยนเวลาที่เก็บใน UTC ให้เป็นวันที่ประเทศไทย
+        $dateSql = $dbTimezone === 'UTC'
+            ? 'DATE(DATE_ADD(a.created_at, INTERVAL 7 HOUR))'
+            : 'DATE(a.created_at)';
 
-        // ใช้สถานะน้ำหนักจากบันทึกล่าสุด ถ้าไม่มีจึงใช้ข้อมูลสมัคร
-        $patientsWithWeight = (clone $active)
-            ->leftJoinSub($latestWeight, 'w', function ($join) {
-                $join->on('w.user_id', '=', 'p.user_id');
-            });
-
-        $weightCodeSql = 'COALESCE(w.weight_status, p.weight_status)';
-
-        /*
-         * 4. ภาวะแทรกซ้อนและน้ำหนัก
-         * เปอร์เซ็นต์หารด้วย active_total
-         * ผู้รับบริการหนึ่งคนอาจมีหลายภาวะแทรกซ้อน
-         */
-        $activeTotal = $patientSummary['active_total'];
-
-        $percentage = static fn (int $count): float =>
-            $activeTotal > 0
-                ? round($count * 100 / $activeTotal, 2)
-                : 0.0;
-
-        $complications = [];
-
-        foreach ([
-            'compli_diabete' => 'เบาหวาน',
-            'compli_hypertension' => 'ความดันโลหิตสูง',
-            'compli_preterm_birth' => 'คลอดก่อนกำหนด',
-        ] as $field => $label) {
-            $count = (clone $active)
-                ->where("p.$field", self::COMPLICATION_YES)
-                ->count();
-
-            $complications[] = [
-                'type' => $field,
-                'label' => $label,
-                'count' => $count,
-                'percentage' => $percentage($count),
-            ];
-        }
-
-        $weightSummary = (clone $patientsWithWeight)
-            ->selectRaw("$weightCodeSql as code")
+        $rows = $query
+            ->selectRaw("$dateSql as activity_date")
             ->selectRaw('COUNT(*) as total')
-            ->groupByRaw($weightCodeSql)
-            ->get()
-            ->map(fn ($row) => [
-                'code' => $row->code === null ? null : (int) $row->code,
-                'type' => $row->code === null
-                    ? 'ไม่มีข้อมูล'
-                    : (self::WEIGHT_LABELS[(int) $row->code]
-                        ?? "รหัสน้ำหนัก {$row->code}"),
-                'count' => (int) $row->total,
-                'percentage' => $percentage((int) $row->total),
-            ]);
+            ->groupByRaw($dateSql)
+            ->get();
 
-        /*
-         * 5. รายการต้องจัดการวันนี้
-         * รวมงานค้างก่อนวันนี้ด้วย ไม่ใช่เฉพาะงานที่สร้างวันนี้
-         * urgency เป็นลำดับจัดการงาน ไม่ใช่การประเมินฉุกเฉินทางการแพทย์
-         */
-        $reviewTasks = (clone $meals)
-            ->where('m.ai_status', self::AI_COMPLETED)
-            ->where('m.review_status', self::REVIEW_PENDING)
-            ->where('m.created_at', '<', $endToday)
-            ->selectRaw("'food_review' as type")
-            ->selectRaw('m.id as reference_id, p.id as patient_id')
-            ->selectRaw('p.user_name as full_name, p.hospital_num as hn')
-            ->selectRaw(
-                "CASE WHEN m.gdm_risk = ? THEN 'high' ELSE 'normal' END as urgency",
-                [self::HIGH_RISK]
-            )
-            ->selectRaw(
-                'CASE WHEN m.gdm_risk = ? THEN 1 ELSE 2 END as priority',
-                [self::HIGH_RISK]
-            )
-            ->selectRaw('COALESCE(m.updated_at, m.created_at) as updated_at');
+        foreach ($rows as $row) {
+            $date = $row->activity_date;
 
-        $patientTasks = (clone $active)
-            ->where('p.status', self::WAITING_STATUS)
-            ->where('p.created_at', '<', $endToday)
-            ->selectRaw("'patient_review' as type")
-            ->selectRaw('p.id as reference_id, p.id as patient_id')
-            ->selectRaw('p.user_name as full_name, p.hospital_num as hn')
-            ->selectRaw("'normal' as urgency, 2 as priority")
-            ->selectRaw('COALESCE(p.updated_at, p.created_at) as updated_at');
+            $dailyCounts[$date] =
+                ($dailyCounts[$date] ?? 0) + (int) $row->total;
+        }
+    }
 
-        $taskUnion = $reviewTasks->unionAll($patientTasks);
+    $activities = [];
 
-        $tasks = DB::query()
-            ->fromSub($taskUnion, 'tasks')
-            ->orderBy('priority')
-            ->orderBy('updated_at')
-            ->orderBy('type')
-            ->orderBy('reference_id')
-            ->paginate($perPage, ['*'], 'task_page');
+    for ($i = 0; $i < 7; $i++) {
+        $date = $firstDay->addDays($i)->toDateString();
 
-        /*
-         * 6. ผู้รับบริการที่ควรติดตาม
-         * รอตรวจ / มีภาวะแทรกซ้อน / น้ำหนักเข้าเกณฑ์ที่ตั้งค่า /
-         * มีมื้ออาหาร high risk ที่ยังรอตรวจ
-         */
-        $mealUpdates = DB::table('meal_transactions')
-            ->select('user_id')
-            ->selectRaw('MAX(COALESCE(updated_at, created_at)) as updated_at')
-            ->groupBy('user_id');
+        $activities[] = [
+            'date' => $date,
+            'count' => $dailyCounts[$date] ?? 0,
+        ];
+    }
 
-        $followUpQuery = (clone $patientsWithWeight)
-            ->leftJoinSub($mealUpdates, 'mu', function ($join) {
-                $join->on('mu.user_id', '=', 'p.id');
-            })
-            ->where(function ($query) use ($weightCodeSql) {
-                $query->where('p.status', self::WAITING_STATUS)
-                    ->orWhere('p.compli_diabete', self::COMPLICATION_YES)
-                    ->orWhere('p.compli_hypertension', self::COMPLICATION_YES)
-                    ->orWhere('p.compli_preterm_birth', self::COMPLICATION_YES);
+    // ---------------------------------------
+    // 4. ภาวะแทรกซ้อนและน้ำหนัก
+    // เปอร์เซ็นต์คิดจากผู้รับบริการ active
+    // ---------------------------------------
 
-                if (self::FOLLOW_UP_WEIGHT_CODES !== []) {
-                    $query->orWhereIn(
-                        DB::raw($weightCodeSql),
-                        self::FOLLOW_UP_WEIGHT_CODES
-                    );
-                }
+    $percentage = static function ($count) use ($activeTotal) {
+        return $activeTotal > 0
+            ? round($count * 100 / $activeTotal, 2)
+            : 0.0;
+    };
 
-                $query->orWhereExists(function ($meal) {
-                    $meal->selectRaw('1')
-                        ->from('meal_transactions as risk')
-                        ->whereColumn('risk.user_id', 'p.id')
-                        ->where('risk.ai_status', self::AI_COMPLETED)
-                        ->where('risk.review_status', self::REVIEW_PENDING)
-                        ->where('risk.gdm_risk', self::HIGH_RISK);
-                });
-            })
-            ->select(
-                'p.id',
-                'p.user_name as full_name',
-                'p.hospital_num as hn',
-                'p.status'
-            )
-            ->selectRaw('COALESCE(w.preg_week, p.preg_week) as gestational_week')
-            ->selectRaw("$weightCodeSql as weight_status")
-            ->selectRaw('COALESCE(w.preg_weight, p.user_weight) as weight')
-            ->selectRaw("
-                GREATEST(
-                    COALESCE(p.updated_at, p.created_at, '1000-01-01'),
-                    COALESCE(w.updated_at, w.created_at, '1000-01-01'),
-                    COALESCE(mu.updated_at, '1000-01-01')
-                ) as updated_at
-            ")
-            ->orderByDesc('updated_at')
-            ->orderBy('p.id');
+    $complications = [];
 
-        $followUp = $followUpQuery
-            ->paginate($perPage, ['*'], 'follow_up_page');
+    $complicationFields = [
+        'compli_diabete' => 'เบาหวาน',
+        'compli_hypertension' => 'ความดันโลหิตสูง',
+        'compli_preterm_birth' => 'คลอดก่อนกำหนด',
+    ];
 
-        $followUp->getCollection()->transform(function ($patient) {
-            $code = $patient->weight_status === null
+    foreach ($complicationFields as $field => $label) {
+        $count = (clone $activePatients)
+            ->where("p.$field", $complicationYes)
+            ->count();
+
+        $complications[] = [
+            'type' => $field,
+            'label' => $label,
+            'count' => $count,
+            'percentage' => $percentage($count),
+        ];
+    }
+
+    // ใช้ weight_status ใน users_register ตาม Query เดิม
+    $weightSummary = (clone $activePatients)
+        ->select('p.weight_status')
+        ->selectRaw('COUNT(*) as total')
+        ->groupBy('p.weight_status')
+        ->orderBy('p.weight_status')
+        ->get()
+        ->map(function ($row) use ($percentage, $weightLabels) {
+            $code = $row->weight_status === null
                 ? null
-                : (int) $patient->weight_status;
+                : (int) $row->weight_status;
 
             return [
-                'id' => (int) $patient->id,
-                'full_name' => $patient->full_name,
-                'first_name' => null,
-                'last_name' => null,
-                'hn' => $patient->hn,
-                // อายุครรภ์จากข้อมูลล่าสุดที่บันทึก ไม่คำนวณเพิ่มตามวัน
-                'gestational_week' => $patient->gestational_week,
-                'status_code' => (int) $patient->status,
-                'status' => (int) $patient->status === self::WAITING_STATUS
-                    ? 'รอตรวจ'
-                    : 'ดูแลต่อเนื่อง',
-                'weight' => $patient->weight,
-                'weight_signal' => [
-                    'code' => $code,
-                    'label' => $code === null
-                        ? 'ไม่มีข้อมูล'
-                        : (self::WEIGHT_LABELS[$code] ?? "รหัสน้ำหนัก {$code}"),
-                    'requires_follow_up' => $code === null
-                        || self::FOLLOW_UP_WEIGHT_CODES === []
-                            ? null
-                            : in_array($code, self::FOLLOW_UP_WEIGHT_CODES, true),
-                ],
-                'updated_at' => $patient->updated_at === '1000-01-01'
-                    ? null
-                    : $patient->updated_at,
+                'type' => 'weight',
+                'code' => $code,
+                'label' => $code === null
+                    ? 'ไม่มีข้อมูล'
+                    : ($weightLabels[$code] ?? "รหัสน้ำหนัก {$code}"),
+                'count' => (int) $row->total,
+                'percentage' => $percentage((int) $row->total),
             ];
         });
 
-        $pageData = static fn ($page): array => [
+    // ---------------------------------------
+    // 5. รายการที่ต้องจัดการวันนี้
+    // รวมรายการรอตรวจที่ค้างจนถึงวันนี้
+    // ---------------------------------------
+
+    $foodTasks = (clone $meals)
+        ->join('users_register as p', 'p.id', '=', 'm.user_id')
+        ->where('m.ai_status', $aiCompleted)
+        ->where('m.review_status', $reviewPending)
+        ->where('m.created_at', '<', $tomorrowStart)
+        ->selectRaw("'food_review' as type")
+        ->selectRaw("'ตรวจสอบอาหาร' as type_label")
+        ->selectRaw('m.id as reference_id')
+        ->selectRaw('p.id as patient_id')
+        ->selectRaw('p.user_name as name')
+        ->selectRaw('p.hospital_num as hn')
+        ->selectRaw("
+            CASE
+                WHEN m.gdm_risk = 'high' THEN 'high'
+                ELSE 'normal'
+            END as urgency
+        ")
+        ->selectRaw("
+            CASE
+                WHEN m.gdm_risk = 'high' THEN 1
+                ELSE 2
+            END as priority
+        ")
+        ->selectRaw('COALESCE(m.updated_at, m.created_at) as updated_at');
+
+    $patientTasks = (clone $activePatients)
+        ->where('p.status', $waitingStatus)
+        ->where('p.created_at', '<', $tomorrowStart)
+        ->selectRaw("'patient_review' as type")
+        ->selectRaw("'ตรวจสอบผู้รับบริการ' as type_label")
+        ->selectRaw('p.id as reference_id')
+        ->selectRaw('p.id as patient_id')
+        ->selectRaw('p.user_name as name')
+        ->selectRaw('p.hospital_num as hn')
+        ->selectRaw("'normal' as urgency")
+        ->selectRaw('2 as priority')
+        ->selectRaw('COALESCE(p.updated_at, p.created_at) as updated_at');
+
+    $taskUnion = $foodTasks->unionAll($patientTasks);
+
+    $tasks = DB::query()
+        ->fromSub($taskUnion, 'tasks')
+        ->orderBy('priority')
+        ->orderBy('updated_at')
+        ->orderBy('type')
+        ->orderBy('reference_id')
+        ->paginate(20, ['*'], 'task_page');
+
+    // ---------------------------------------
+    // 6. รายชื่อคนไข้ของแพทย์
+    // ส่ง name โดยไม่แยกชื่อและนามสกุล
+    // ---------------------------------------
+
+    $users = (clone $patients)
+        ->select(
+            'p.id',
+            'p.user_id',
+            'p.user_name as name',
+            'p.hospital_num as hn',
+            'p.preg_week as gestational_week',
+            'p.due_date',
+            'p.user_weight as weight',
+            'p.weight_status',
+            'p.status as status_code',
+            'p.created_at'
+        )
+        ->selectRaw('COALESCE(p.updated_at, p.created_at) as updated_at')
+        ->orderBy('p.id')
+        ->paginate(50, ['*'], 'patient_page');
+
+    $users->getCollection()->transform(
+        function ($user) use (
+            $waitingStatus,
+            $continuingStatus,
+            $activeStatuses,
+            $weightLabels
+        ) {
+            $statusCode = (int) $user->status_code;
+            $weightCode = $user->weight_status === null
+                ? null
+                : (int) $user->weight_status;
+
+            $user->is_active = in_array(
+                $statusCode,
+                $activeStatuses,
+                true
+            );
+
+            $user->status = match ($statusCode) {
+                $waitingStatus => 'รอตรวจ',
+                $continuingStatus => 'ดูแลต่อเนื่อง',
+                default => 'สถานะอื่น',
+            };
+
+            $user->weight_signal = $weightCode === null
+                ? 'ไม่มีข้อมูล'
+                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}");
+
+            return $user;
+        }
+    );
+
+    $pageData = static function ($page) {
+        return [
             'items' => $page->items(),
             'total' => $page->total(),
             'current_page' => $page->currentPage(),
             'per_page' => $page->perPage(),
             'last_page' => $page->lastPage(),
         ];
+    };
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'patients' => $patientSummary,
-                'ai_food_analysis' => $foodSummary,
-                'activities_last_7_days' => $activities,
-                'complications_and_weight' => [
-                    'denominator' => $activeTotal,
-                    'complications' => $complications,
-                    'weight' => $weightSummary,
-                ],
-                'tasks_today' => $pageData($tasks),
-                'patients_to_follow_up' => $pageData($followUp),
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'patients' => $patientSummary,
+            'ai_food_analysis' => $foodSummary,
+            'activities_last_7_days' => $activities,
+            'complications_and_weight' => [
+                'denominator' => $activeTotal,
+                'complications' => $complications,
+                'weight' => $weightSummary,
             ],
-            'meta' => [
-                'date' => $today->toDateString(),
-                'timezone' => 'Asia/Bangkok',
-                'database_timezone' => $dbTimezone,
-                'generated_at' => CarbonImmutable::now('Asia/Bangkok')
-                    ->toIso8601String(),
-            ],
-        ]);
-    }
+            'tasks_today' => $pageData($tasks),
+            'patient_list' => $pageData($users),
+        ],
+        'meta' => [
+            'date' => $today->toDateString(),
+            'timezone' => 'Asia/Bangkok',
+            'database_timezone' => $dbTimezone,
+        ],
+    ]);
+}
 }
     
