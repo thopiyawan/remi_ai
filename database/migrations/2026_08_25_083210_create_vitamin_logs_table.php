@@ -11,10 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
+    
         Schema::create('vitamin_logs', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+                $table->id();
+
+                $table->string('name_th')->nullable();
+                $table->string('name_en')->nullable();
+                $table->date('meal_date');
+                // เช่น mg, mcg, tablet
+                $table->string('default_unit', 30)->nullable();
+                $table->text('description')->nullable();
+                $table->boolean('is_active')->default(true);
+
+                $table->timestamps();
+            });
     }
 
     /**
