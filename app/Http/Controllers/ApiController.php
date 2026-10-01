@@ -904,7 +904,7 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
     private const FOLLOW_UP_WEIGHT_CODES = [
         // ใส่รหัสน้ำหนักที่ต้องติดตาม
     ];
-   public function get_dashboard()
+   public function dashboard_overview()
 {
     $doctor_id = 'test';
 
