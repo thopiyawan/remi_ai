@@ -192,3 +192,6 @@ Route::post('get_dashboard', [ApiController::class, 'get_dashboard']);
 
 Route::put('update_hospital_num', [ApiController::class, 'update_hospital_num']);
 Route::put('update_user', [ApiController::class, 'update_user']);
+
+//api ส่งไปให้  new remi
+Route::get('/dashboard_overview', [ApiController::class, 'dashboard_overview']);
