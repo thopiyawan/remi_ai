@@ -1284,5 +1284,322 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
     ]);
 }
 
+//public function get_patient_detail(Request $request, $patient_id)
+public function get_patient_detail()
+{
+    $patient_id = 'Ucd1d3d9310f1afd627bbd1ea729f5be5';
+    $doctorId = 'test';
+    //$doctorId = Session::get('doctor_id');
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    $validated = $request->validate([
+        'weight_page' => 'sometimes|integer|min:1',
+        'plan_page' => 'sometimes|integer|min:1',
+        'issue_page' => 'sometimes|integer|min:1',
+    ]);
+
+    // ตรวจสิทธิ์แพทย์ก่อน Query ข้อมูลสุขภาพ
+    $patient = DB::table('users_register as p')
+        ->where('p.id', $patient_id)
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        })
+        ->select(
+            'p.id',
+            'p.user_id',
+            'p.user_name',
+            'p.hospital_num',
+            'p.user_age',
+            'p.preg_week',
+            'p.due_date',
+            'p.user_Pre_weight',
+            'p.user_weight',
+            'p.weight_status',
+            'p.compli_diabete',
+            'p.compli_hypertension',
+            'p.compli_preterm_birth',
+            'p.updated_at'
+        )
+        ->first();
+
+    if (!$patient) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    $id = $patient->id;
+    $lineUserId = $patient->user_id;
+
+    // ต้องตรวจค่าเหล่านี้ให้ตรงกับระบบจริง
+    $aiCompleted = 'completed';
+    $reviewPending = 'pending';
+    $complicationYes = 1;
+
+    $pageData = static function ($page) {
+        return [
+            'items' => $page->items(),
+            'total' => $page->total(),
+            'current_page' => $page->currentPage(),
+            'per_page' => $page->perPage(),
+            'last_page' => $page->lastPage(),
+        ];
+    };
+
+    // -----------------------------------------
+    // 1. ข้อมูลพื้นฐาน
+    // อายุและอายุครรภ์เป็นค่าที่บันทึกไว้ในระบบ
+    // -----------------------------------------
+
+    $basicInfo = [
+        'id' => (int) $id,
+        'name' => $patient->user_name,
+        'hn' => $patient->hospital_num,
+        'age' => $patient->user_age,
+        'gestational_week' => $patient->preg_week,
+        'due_date' => $patient->due_date,
+        'is_first_pregnancy' => null,
+        'risk_level' => null,
+        'pre_pregnancy_weight' => $patient->user_Pre_weight,
+        'weight' => $patient->user_weight,
+        'weight_status_code' => $patient->weight_status,
+        'updated_at' => $patient->updated_at,
+    ];
+
+    // -----------------------------------------
+    // 2. แนวโน้มน้ำหนัก
+    // วันที่ใช้เวลาบันทึก เพราะไม่มีวันที่ชั่งแยก
+    // -----------------------------------------
+
+    $weights = DB::table('RecordOfPregnancy')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at')
+        ->where('deleted_status', 0)
+        ->select(
+            'id',
+            'created_at as recorded_at',
+            'preg_week as gestational_week',
+            'preg_weight as weight',
+            'weight_status as weight_status_code'
+        )
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->paginate(
+            100,
+            ['*'],
+            'weight_page',
+            (int) ($validated['weight_page'] ?? 1)
+        );
+
+    $weights->getCollection()->transform(function ($row) {
+        return [
+            'id' => $row->id,
+            'recorded_at' => $row->recorded_at,
+            'gestational_week' => $row->gestational_week,
+            'weight' => $row->weight,
+            'weight_status_code' => $row->weight_status_code,
+            // ยังไม่มีเกณฑ์ช่วงน้ำหนักแนะนำในฐานข้อมูล
+            'recommended_weight_range' => [
+                'min' => null,
+                'max' => null,
+                'unit' => 'kg',
+            ],
+        ];
+    });
+
+    // -----------------------------------------
+    // 3. สรุปการบันทึกสุขภาพ
+    // นับทั้งหมด + วันที่บันทึกล่าสุด
+    // -----------------------------------------
+
+    $summarize = static function ($query) {
+        $row = (clone $query)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('MAX(created_at) as last_recorded_at')
+            ->first();
+
+        return [
+            'total' => (int) $row->total,
+            'last_recorded_at' => $row->last_recorded_at,
+        ];
+    };
+
+    $foodQuery = DB::table('meal_transactions')
+        ->where('user_id', $id);
+
+    $vitaminQuery = DB::table('tracker')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at')
+        ->whereNotNull('vitamin')
+        ->whereRaw("TRIM(vitamin) <> ''");
+
+    $exerciseQuery = DB::table('exercise_logs')
+        ->where('user_id', $id)
+        ->whereNull('deleted_at');
+
+    $fetalQuery = DB::table('fetal_movement')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at');
+
+    $quizQuery = DB::table('quizstep')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at');
+
+    $healthSummary = [
+        'food' => $summarize($foodQuery),
+        'vitamin' => $summarize($vitaminQuery),
+        'exercise' => $summarize($exerciseQuery),
+        'fetal_movement' => $summarize($fetalQuery),
+        'questions' => [
+            'patient_questions' => [
+                'total' => null,
+                'last_recorded_at' => null,
+            ],
+            'questionnaire_answers' => $summarize($quizQuery),
+        ],
+    ];
+
+    // -----------------------------------------
+    // 4. ประเด็นที่ต้องเฝ้าระวัง
+    // ไม่กำหนดระดับความสำคัญทางคลินิกเอง
+    // -----------------------------------------
+
+    $complicationIssues = [];
+
+    foreach ([
+        'compli_diabete' => 'มีข้อมูลภาวะเบาหวาน',
+        'compli_hypertension' => 'มีข้อมูลภาวะความดันโลหิตสูง',
+        'compli_preterm_birth' => 'มีข้อมูลภาวะคลอดก่อนกำหนด',
+    ] as $field => $detail) {
+        if ((int) $patient->{$field} === $complicationYes) {
+            $complicationIssues[] = [
+                'type' => $field,
+                'detail' => $detail,
+                'priority' => null,
+                'status' => null,
+                'source' => 'users_register',
+                'updated_at' => $patient->updated_at,
+            ];
+        }
+    }
+
+    $foodIssues = (clone $foodQuery)
+        ->where('ai_status', $aiCompleted)
+        ->where('review_status', $reviewPending)
+        ->select(
+            'id',
+            'meal_date',
+            'meal_type',
+            'gdm_risk',
+            'recommendation',
+            'review_status',
+            'created_at',
+            'updated_at'
+        )
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            ['*'],
+            'issue_page',
+            (int) ($validated['issue_page'] ?? 1)
+        );
+
+    $foodIssues->getCollection()->transform(function ($meal) {
+        return [
+            'type' => 'food_review',
+            'reference_id' => $meal->id,
+            'detail' => 'อาหารที่ AI วิเคราะห์แล้วรอตรวจสอบ',
+            'meal_date' => $meal->meal_date,
+            'meal_type' => $meal->meal_type,
+            'ai_risk_level' => $meal->gdm_risk,
+            'recommendation' => $meal->recommendation,
+            'priority' => null,
+            'status' => $meal->review_status,
+            'source' => 'meal_transactions',
+            'updated_at' => $meal->updated_at ?? $meal->created_at,
+        ];
+    });
+
+    // -----------------------------------------
+    // 5. แผนดูแลและนัดหมาย
+    // มีเฉพาะแผนอินซูลินใน SQL ปัจจุบัน
+    // -----------------------------------------
+
+    $plans = DB::table('insulin_plans as ip')
+        ->join('insulins as i', 'i.id', '=', 'ip.insulin_id')
+        ->where('ip.user_id', $id)
+        ->select(
+            'ip.id',
+            'ip.start_date as date',
+            'ip.end_date',
+            'i.name_th as item',
+            'ip.dose_units',
+            'ip.injection_period',
+            'ip.injection_time',
+            'ip.prescribed_by',
+            'ip.status',
+            'ip.note',
+            'ip.updated_at'
+        )
+        ->orderByDesc('ip.start_date')
+        ->orderByDesc('ip.id')
+        ->paginate(
+            20,
+            ['*'],
+            'plan_page',
+            (int) ($validated['plan_page'] ?? 1)
+        );
+
+    $plans->getCollection()->transform(function ($plan) {
+        return [
+            'id' => $plan->id,
+            'type' => 'insulin_plan',
+            'date' => $plan->date,
+            'end_date' => $plan->end_date,
+            'item' => $plan->item,
+            'dose_units' => $plan->dose_units,
+            'injection_period' => $plan->injection_period,
+            'injection_time' => $plan->injection_time,
+            // เป็นผู้สั่งแผนตามข้อมูลที่มี ไม่ใช่ผู้รับผิดชอบนัดหมาย
+            'prescribed_by' => $plan->prescribed_by,
+            'responsible_person' => null,
+            'status' => $plan->status,
+            'note' => $plan->note,
+            'updated_at' => $plan->updated_at,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'basic_info' => $basicInfo,
+            'weight_trend' => $pageData($weights),
+            'health_record_summary' => $healthSummary,
+            'monitoring_issues' => [
+                'complications' => $complicationIssues,
+                'food_reviews' => $pageData($foodIssues),
+            ],
+            'care_plans_and_appointments' => [
+                'care_plans' => $pageData($plans),
+                // null หมายถึงยังไม่มีแหล่งข้อมูล
+                'appointments' => null,
+            ],
+        ],
+    ]);
+}
+
 }
     

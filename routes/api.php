@@ -195,3 +195,4 @@ Route::put('update_user', [ApiController::class, 'update_user']);
 
 //api ส่งไปให้  new remi
 Route::get('/dashboard_overview', [ApiController::class, 'dashboard_overview']);
+Route::get('/get_patient_detail', [ApiController::class, 'get_patient_detail']);
