@@ -875,16 +875,10 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
           'status' => $graphbar->status,
       ];
   });
-
-
-
-  
-
-
-/////////////////////////////////////////////////////////////////////////////
   		return view('test_api',[ 'graphbar'=>$graphbar]);
  	}
-
+/////////////////////////////////////////////////////////////////////////////
+   //new remi
    // ต้องตรวจให้ตรงกับค่าที่ระบบบันทึกจริง
     private const ACTIVE_STATUSES = [0, 1];
     private const WAITING_STATUS = 0;
@@ -929,8 +923,11 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
 
     // เติมความหมายของ weight_status ตามระบบจริง
     $weightLabels = [
-        // 0 => 'ปกติ',
-        // 1 => '...',
+        0 => 'ปกติ',
+        1 => 'น้ำหนักปกติ',
+        2 => 'น้ำหนักน้อยกว่าเกณฑ์',
+        3 => 'น้ำหนักเกินเกณฑ์',
+        4 => 'ภาวะแทรกซ้อน',
     ];
 
     /*
@@ -1286,5 +1283,6 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
         ],
     ]);
 }
+
 }
     
