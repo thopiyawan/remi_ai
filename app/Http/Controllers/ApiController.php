@@ -1306,7 +1306,7 @@ public function get_patient_detail()
 
     // ตรวจสิทธิ์แพทย์ก่อน Query ข้อมูลสุขภาพ
     $patient = DB::table('users_register as p')
-        ->where('p.id', $patient_id)
+        ->where('p.user_id', $patient_id)
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
