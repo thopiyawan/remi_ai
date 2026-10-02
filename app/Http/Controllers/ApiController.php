@@ -923,7 +923,7 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
 
     // เติมความหมายของ weight_status ตามระบบจริง
     $weightLabels = [
-        0 => 'ปกติ',
+        0 => 'ไม่มีการบันทึก',
         1 => 'น้ำหนักปกติ',
         2 => 'น้ำหนักน้อยกว่าเกณฑ์',
         3 => 'น้ำหนักเกินเกณฑ์',
