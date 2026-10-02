@@ -1409,7 +1409,9 @@ public function get_patient_detail()
             'recorded_at' => $row->recorded_at,
             'gestational_week' => $row->gestational_week,
             'weight' => $row->weight,
-            'weight_status_code' => $row->weight_status_code,
+            'weight_status_code' => $row->weight_status_code === null,
+                    ? 'ไม่มีข้อมูล'
+                    : ($weightLabels[$row->weight_status_code] ?? "รหัสน้ำหนัก {$row->weight_status_code}"),
             // ยังไม่มีเกณฑ์ช่วงน้ำหนักแนะนำในฐานข้อมูล
             'recommended_weight_range' => [
                 'min' => null,
