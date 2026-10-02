@@ -1298,11 +1298,11 @@ public function get_patient_detail()
         ], 401);
     }
 
-    $validated = $request->validate([
-        'weight_page' => 'sometimes|integer|min:1',
-        'plan_page' => 'sometimes|integer|min:1',
-        'issue_page' => 'sometimes|integer|min:1',
-    ]);
+    // $validated = $request->validate([
+    //     'weight_page' => 'sometimes|integer|min:1',
+    //     'plan_page' => 'sometimes|integer|min:1',
+    //     'issue_page' => 'sometimes|integer|min:1',
+    // ]);
 
     // ตรวจสิทธิ์แพทย์ก่อน Query ข้อมูลสุขภาพ
     $patient = DB::table('users_register as p')
