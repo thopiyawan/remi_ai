@@ -1379,7 +1379,7 @@ public function get_patient_detail()
         'weight' => $patient->user_weight,
         'weight_status_code' => $patient->weight_status === null
                 ? 'ไม่มีข้อมูล'
-                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}");
+                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}"),
         'updated_at' => $patient->updated_at,
     ];
 
@@ -1416,7 +1416,7 @@ public function get_patient_detail()
             'weight' => $row->weight,
             'weight_status_code' => $row->weight_status_code === null
                 ? 'ไม่มีข้อมูล'
-                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}");
+                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}"),
             // ยังไม่มีเกณฑ์ช่วงน้ำหนักแนะนำในฐานข้อมูล
             'recommended_weight_range' => [
                 'min' => null,
