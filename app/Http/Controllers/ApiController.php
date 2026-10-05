@@ -1636,7 +1636,7 @@ public function patient_health_history(Request $request)
     ]);
 
     // ใช้ Session เมื่อมี; รับ doctor_id สำหรับทดสอบเฉพาะ local
-    $doctorId = Session::get('doctor_id');
+    $doctorId =  $validated['doctor_id'];
     $patient_id = $validated['user_id'];
 
     if (($doctorId === null || $doctorId === '')
