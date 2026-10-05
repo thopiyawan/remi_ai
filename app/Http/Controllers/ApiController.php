@@ -1313,7 +1313,7 @@ public function get_patient_detail(Request $request)
     ]);
 
     $doctor_id = $validated['doctor_id'];
-    $user_id = $validated['user_id'];
+    $patient_id = $validated['user_id'];
 
     // $validated = $request->validate([
     //     'weight_page' => 'sometimes|integer|min:1',
