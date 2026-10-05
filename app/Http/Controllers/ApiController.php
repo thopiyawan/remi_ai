@@ -1295,8 +1295,8 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
 
 public function get_patient_detail(Request $request)
 {
-    $patient_id = 'Ucd1d3d9310f1afd627bbd1ea729f5be5';
-    $doctorId = 'test';
+    // $patient_id = 'Ucd1d3d9310f1afd627bbd1ea729f5be5';
+    // $doctorId = 'test';
     //$doctorId = Session::get('doctor_id');
 
     // if ($doctorId === null || $doctorId === '') {
