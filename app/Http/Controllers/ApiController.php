@@ -1378,7 +1378,7 @@ public function get_patient_detail()
         'pre_pregnancy_weight' => $patient->user_Pre_weight,
         'weight' => $patient->user_weight,
         'weight_status_code' => $patient->weight_status,
-        'weight_status_code' => $patient->weight_status === null
+        'weight_status_code' => (int) $patient->weight_status === null
                  ? 'ไม่มีข้อมูล'
                  : ($weightLabels[ (int) $patient->weight_status] ?? "รหัสน้ำหนัก {$patient->weight_status}"),
         'updated_at' => $patient->updated_at,
