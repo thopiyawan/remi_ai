@@ -1653,7 +1653,7 @@ public function patient_health_history(Request $request)
 
     // ตรวจว่าคนไข้เป็นของแพทย์ก่อนดึงข้อมูลสุขภาพ
     $patient = DB::table('users_register as p')
-        ->where('p.id', $patient_id)
+        ->where('p.user_id', $patient_id)
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
@@ -1674,8 +1674,6 @@ public function patient_health_history(Request $request)
             'p.user_weight'
         )
         ->first();
-
-         dd($patient);
 
     if (!$patient) {
         return response()->json([
