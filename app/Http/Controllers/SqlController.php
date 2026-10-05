@@ -787,12 +787,12 @@ class SqlController extends Controller
         $time_of_day = $request->input('time_of_day');
         $datetime = date('Y-m-d H:i:s', strtotime($request->input('datetime')));
         $blood_sugar = $request->input('blood_sugar'); 
-        dd($user_id);
+    
         $preg_week = users_register::select('preg_week')
                     ->whereNull('deleted_at')
                     ->where('user_id',$user_id)
                     ->first();
-
+        dd($preg_week);
         $data = array(
             "user_id" => $user_id,
             "meal" => $meal,
