@@ -1653,7 +1653,7 @@ public function patient_health_history(Request $request)
 
     // ตรวจว่าคนไข้เป็นของแพทย์ก่อนดึงข้อมูลสุขภาพ
     $patient = DB::table('users_register as p')
-        ->where('p.id', $validated['patient_id'])
+        ->where('p.id', $patient_id)
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
