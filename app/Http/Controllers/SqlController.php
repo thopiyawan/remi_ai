@@ -792,7 +792,7 @@ class SqlController extends Controller
                     ->whereNull('deleted_at')
                     ->where('user_id',$user_id)
                     ->first();
-        dd($preg_week);
+        dd($user_id);
         $data = array(
             "user_id" => $user_id,
             "meal" => $meal,
