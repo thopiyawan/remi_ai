@@ -1650,7 +1650,7 @@ public function patient_health_history(Request $request)
             'message' => 'กรุณาเข้าสู่ระบบแพทย์',
         ], 401);
     }
- dd(patient_id);
+ dd($patient_id);
     // ตรวจว่าคนไข้เป็นของแพทย์ก่อนดึงข้อมูลสุขภาพ
     $patient = DB::table('users_register as p')
         ->where('p.id', $patient_id)
