@@ -2243,7 +2243,7 @@ class ReplyMessageController extends Controller
                                 ),
   
                             new ImagemapUriActionBuilder(
-                              'https://liff.line.me/1656991660-v073Nlgm/',
+                              'https://liff.line.me/2011875415-NG5vmYaF',
                                 new AreaBuilder(39,450,481,241)
                                 ),
                             new ImagemapUriActionBuilder(
