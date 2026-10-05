@@ -1629,7 +1629,7 @@ public function get_patient_detail(Request $request)
 public function patient_health_history(Request $request)
 {
     $validated = $request->validate([
-        'user_id' => 'required|integer|min:1',
+        'user_id' => 'sometimes|string|max:255',
         'doctor_id' => 'sometimes|string|max:255',
         'exercise_page' => 'sometimes|integer|min:1',
         'fetal_page' => 'sometimes|integer|min:1',
