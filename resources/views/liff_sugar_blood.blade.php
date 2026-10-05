@@ -105,7 +105,7 @@
         user_id_line = profile.userId;
       }).catch(err => console.error(err));
     }
-    liff.init({ liffId: "1656991660-TbfPedX3" }, () => {
+    liff.init({ liffId: "2011875415-NG5vmYaF" }, () => {
       if (liff.isLoggedIn()) {
         runApp()
       } else {
