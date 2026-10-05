@@ -1625,5 +1625,402 @@ public function get_patient_detail(Request $request)
     ]);
 }
 
+
+public function patient_health_history(Request $request)
+{
+    $validated = $request->validate([
+        'user_id' => 'required|integer|min:1',
+        'doctor_id' => 'sometimes|string|max:255',
+        'exercise_page' => 'sometimes|integer|min:1',
+        'fetal_page' => 'sometimes|integer|min:1',
+    ]);
+
+    // ใช้ Session เมื่อมี; รับ doctor_id สำหรับทดสอบเฉพาะ local
+    $doctorId = Session::get('doctor_id');
+    $patient_id = user_id;
+
+    if (($doctorId === null || $doctorId === '')
+        && app()->environment('local')) {
+        $doctorId = $validated['doctor_id'] ?? null;
+    }
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    // ตรวจว่าคนไข้เป็นของแพทย์ก่อนดึงข้อมูลสุขภาพ
+    $patient = DB::table('users_register as p')
+        ->where('p.id', $validated['patient_id'])
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        })
+        ->select(
+            'p.id',
+            'p.user_id',
+            'p.user_name',
+            'p.hospital_num',
+            'p.user_age',
+            'p.preg_week',
+            'p.user_height',
+            'p.user_Pre_weight',
+            'p.user_weight'
+        )
+        ->first();
+
+    if (!$patient) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    $id = $patient->id;
+    $lineUserId = $patient->user_id;
+
+    // ฟิลด์น้ำหนัก/ส่วนสูงบางส่วนเป็น varchar
+    $number = static function ($value) {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return is_numeric($value) ? (float) $value : null;
+    };
+
+    $pageData = static function ($page) {
+        return [
+            'items' => $page->items(),
+            'total' => $page->total(),
+            'current_page' => $page->currentPage(),
+            'per_page' => $page->perPage(),
+            'last_page' => $page->lastPage(),
+        ];
+    };
+
+    // ----------------------------------
+    // 1. ประวัติน้ำหนัก
+    // ส่งทั้งหมดสำหรับกราฟและคำนวณการเปลี่ยนแปลง
+    // ----------------------------------
+
+    $weightRows = DB::table('RecordOfPregnancy')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at')
+        ->where('deleted_status', 0)
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->get([
+            'id',
+            'created_at',
+            'preg_week',
+            'preg_weight',
+            'weight_status',
+        ]);
+
+    $preWeight = $number($patient->user_Pre_weight);
+    $previousWeight = null;
+
+    $weightHistory = $weightRows->map(
+        function ($row) use (
+            $number,
+            $preWeight,
+            &$previousWeight
+        ) {
+            $weight = $number($row->preg_weight);
+
+            $change = $weight !== null && $previousWeight !== null
+                ? round($weight - $previousWeight, 2)
+                : null;
+
+            if ($weight !== null) {
+                $previousWeight = $weight;
+            }
+
+            return [
+                'id' => $row->id,
+                'date' => $row->created_at === null
+                    ? null
+                    : substr($row->created_at, 0, 10),
+                'gestational_week' => $row->preg_week,
+                'weight' => $weight,
+                'unit' => 'kg',
+                'target_weight' => null,
+                'change_from_previous' => $change,
+                'change_from_pre_pregnancy' =>
+                    $weight !== null && $preWeight !== null
+                        ? round($weight - $preWeight, 2)
+                        : null,
+                'weight_status_code' => $row->weight_status,
+                'recorded_at' => $row->created_at,
+            ];
+        }
+    );
+
+    // ----------------------------------
+    // 2. ข้อมูลพื้นฐาน + BMI
+    // ใช้บันทึกน้ำหนักล่าสุดที่เป็นตัวเลข
+    // ----------------------------------
+
+    $latestValidWeight = $weightRows->last(
+        fn ($row) => $number($row->preg_weight) !== null
+    );
+
+    $weight = $latestValidWeight
+        ? $number($latestValidWeight->preg_weight)
+        : $number($patient->user_weight);
+
+    $heightCm = $number($patient->user_height);
+    $heightM = $heightCm !== null && $heightCm > 0
+        ? $heightCm / 100
+        : null;
+
+    $calculateBmi = static function ($weight) use ($heightM) {
+        return $weight !== null && $weight > 0 && $heightM !== null
+            ? round($weight / ($heightM * $heightM), 2)
+            : null;
+    };
+
+    $basicInfo = [
+        'id' => (int) $id,
+        'name' => $patient->user_name,
+        'hn' => $patient->hospital_num,
+        'age' => $patient->user_age,
+        'gestational_week' => $patient->preg_week,
+        'height_cm' => $heightCm,
+        'weight' => $weight,
+        'weight_unit' => 'kg',
+        'weight_source' => $latestValidWeight
+            ? 'RecordOfPregnancy'
+            : 'users_register',
+        'weight_recorded_at' => $latestValidWeight?->created_at,
+        'bmi' => $calculateBmi($weight),
+        'pre_pregnancy_bmi' => $calculateBmi($preWeight),
+    ];
+
+    // ----------------------------------
+    // 3. ประวัติออกกำลังกาย
+    // user_id เชื่อมกับ users_register.id
+    // ----------------------------------
+
+    $exerciseBase = DB::table('exercise_logs')
+        ->where('user_id', $id)
+        ->whereNull('deleted_at');
+
+    $exercises = (clone $exerciseBase)
+        ->select(
+            'id',
+            'exercise_date as date',
+            'start_time as time',
+            'exercise_type as type',
+            'duration_minutes',
+            'intensity',
+            'note',
+            'created_at as recorded_at'
+        )
+        ->orderByDesc('exercise_date')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            ['*'],
+            'exercise_page',
+            (int) ($validated['exercise_page'] ?? 1)
+        );
+
+    $exercises->getCollection()->transform(function ($row) {
+        $row->status = null;
+        return $row;
+    });
+
+    // ----------------------------------
+    // 4. ประวัติลูกดิ้น
+    // แยกเช้า/กลางวัน/เย็นในแต่ละวัน
+    // ----------------------------------
+
+    $fetalBase = DB::table('fetal_movement')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at');
+
+    $fetalHistory = (clone $fetalBase)
+        ->orderByDesc('date')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            [
+                'id',
+                'date',
+                'preg_week',
+                'num_morning',
+                'num_noon',
+                'num_evening',
+                'created_at',
+            ],
+            'fetal_page',
+            (int) ($validated['fetal_page'] ?? 1)
+        );
+
+    $fetalHistory->getCollection()->transform(function ($row) {
+        $periods = [];
+
+        foreach ([
+            'morning' => 'num_morning',
+            'noon' => 'num_noon',
+            'evening' => 'num_evening',
+        ] as $period => $field) {
+            $periods[] = [
+                'period' => $period,
+                // null = ไม่มีข้อมูล; 0 = บันทึกว่าได้ศูนย์ครั้ง
+                'count' => $row->{$field} === null
+                    ? null
+                    : (int) $row->{$field},
+                'counting_duration_minutes' => null,
+                'is_abnormal' => null,
+            ];
+        }
+
+        return [
+            'id' => $row->id,
+            'date' => $row->date,
+            'gestational_week' => $row->preg_week,
+            'periods' => $periods,
+            'recorded_at' => $row->created_at,
+        ];
+    });
+
+    // ----------------------------------
+    // 5. รายการล่าสุด 20 รายการ
+    // น้ำหนัก / ออกกำลังกาย / ลูกดิ้น /
+    // พลังงานอาหาร / บันทึกวิตามิน
+    // ----------------------------------
+
+    $recent = collect();
+
+    foreach ($weightRows->sortByDesc('created_at')->take(20) as $row) {
+        $recent->push([
+            'id' => $row->id,
+            'activity_type' => 'weight',
+            'value' => $number($row->preg_weight),
+            'unit' => 'kg',
+            'recorded_at' => $row->created_at,
+        ]);
+    }
+
+    foreach ((clone $exerciseBase)
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->limit(20)
+        ->get(['id', 'exercise_type', 'duration_minutes', 'created_at']) as $row) {
+        $recent->push([
+            'id' => $row->id,
+            'activity_type' => 'exercise',
+            'detail' => $row->exercise_type,
+            'value' => $row->duration_minutes,
+            'unit' => 'minutes',
+            'recorded_at' => $row->created_at,
+        ]);
+    }
+
+    foreach ((clone $fetalBase)
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->limit(20)
+        ->get() as $row) {
+        foreach ([
+            'morning' => 'num_morning',
+            'noon' => 'num_noon',
+            'evening' => 'num_evening',
+        ] as $period => $field) {
+            if ($row->{$field} !== null) {
+                $recent->push([
+                    'id' => $row->id,
+                    'activity_type' => 'fetal_movement',
+                    'period' => $period,
+                    'value' => (int) $row->{$field},
+                    'unit' => 'times',
+                    'recorded_at' => $row->created_at,
+                ]);
+            }
+        }
+    }
+
+    $latestMeals = DB::table('meal_transactions')
+        ->where('user_id', $id)
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->limit(20)
+        ->get(['id', 'meal_type', 'total_calorie', 'created_at']);
+
+    foreach ($latestMeals as $row) {
+        $recent->push([
+            'id' => $row->id,
+            'activity_type' => 'food',
+            'detail' => $row->meal_type,
+            'value' => $number($row->total_calorie),
+            'unit' => 'kcal',
+            'recorded_at' => $row->created_at,
+        ]);
+    }
+
+    // ใช้ tracker เพราะ vitamin_logs ยังไม่มี user_id
+    $latestVitamins = DB::table('tracker')
+        ->where('user_id', $lineUserId)
+        ->whereNull('deleted_at')
+        ->whereNotNull('vitamin')
+        ->whereRaw("TRIM(vitamin) <> ''")
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->limit(20)
+        ->get(['id', 'vitamin', 'created_at']);
+
+    foreach ($latestVitamins as $row) {
+        $recent->push([
+            'id' => $row->id,
+            'activity_type' => 'vitamin',
+            'value' => $row->vitamin,
+            // ค่านี้เป็นค่าที่บันทึก ไม่ใช่จำนวนเม็ด
+            'unit' => null,
+            'recorded_at' => $row->created_at,
+        ]);
+    }
+
+    $recent = $recent
+        ->sort(function ($a, $b) {
+            $timeOrder = strcmp(
+                $b['recorded_at'] ?? '',
+                $a['recorded_at'] ?? ''
+            );
+
+            if ($timeOrder !== 0) {
+                return $timeOrder;
+            }
+
+            $typeOrder = strcmp($a['activity_type'], $b['activity_type']);
+
+            return $typeOrder !== 0
+                ? $typeOrder
+                : ($b['id'] <=> $a['id']);
+        })
+        ->take(20)
+        ->values();
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'basic_info' => $basicInfo,
+            'weight_history' => $weightHistory->values(),
+            'exercise_history' => $pageData($exercises),
+            'fetal_movement_history' => $pageData($fetalHistory),
+            'recent_activities' => $recent,
+        ],
+    ]);
+}
+
 }
     
