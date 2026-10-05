@@ -16,8 +16,9 @@ return new class extends Migration
 
             $table->string('user_id', 255);
 
-            $table->foreignId('user_id')
-                ->constrained('users_register')
+            $table->foreign('user_id')
+                ->references('user_id')
+                ->on('users_register')
                 ->restrictOnDelete();
 
             // เดิน, วิ่ง, โยคะ, ว่ายน้ำ ฯลฯ

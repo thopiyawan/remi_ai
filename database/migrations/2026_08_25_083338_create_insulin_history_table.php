@@ -20,8 +20,9 @@ return new class extends Migration
             $table->id();
             $table->string('user_id', 255);
 
-            $table->foreignId('user_id')
-                ->constrained('users_register')
+            $table->foreign('user_id')
+                ->references('user_id')
+                ->on('users_register')
                 ->restrictOnDelete();
 
             $table->foreignId('insulin_plan_id')

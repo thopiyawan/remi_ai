@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('meal_transactions', function (Blueprint $table) {
             $table->id();
             $table->string('user_id', 255);
-            // ผู้รับประทานอาหาร
-            $table->foreignId('user_id')
-                ->constrained('users_register')
+
+            $table->foreign('user_id')
+                ->references('user_id')
+                ->on('users_register')
                 ->restrictOnDelete();
 
             // breakfast, lunch, dinner, snack
