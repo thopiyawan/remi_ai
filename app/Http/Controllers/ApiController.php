@@ -1365,6 +1365,9 @@ public function get_patient_detail()
     // 1. ข้อมูลพื้นฐาน
     // อายุและอายุครรภ์เป็นค่าที่บันทึกไว้ในระบบ
     // -----------------------------------------
+    $weightCode = $patient->weight_status === null
+    ? null
+    : (int) $patient->weight_status;
 
     $basicInfo = [
         'id' => (int) $id,
@@ -1378,9 +1381,9 @@ public function get_patient_detail()
         'pre_pregnancy_weight' => $patient->user_Pre_weight,
         'weight' => $patient->user_weight,
         'weight_status_code' => $patient->weight_status,
-        'weight_status_code' => (int) $patient->weight_status === null
-                 ? 'ไม่มีข้อมูล'
-                 : ($weightLabels[ (int) $patient->weight_status] ?? "รหัสน้ำหนัก {$patient->weight_status}"),
+        'weight_status_label' => $weightCode === null
+                                ? 'ไม่มีข้อมูล'
+                                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}"),
         'updated_at' => $patient->updated_at,
     ];
 
