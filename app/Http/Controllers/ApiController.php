@@ -1312,7 +1312,7 @@ public function get_patient_detail(Request $request)
 
     ]);
 
-    $doctor_id = $validated['doctor_id'];
+    $doctorId = $validated['doctor_id'];
     $patient_id = $validated['user_id'];
 
     // $validated = $request->validate([
