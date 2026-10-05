@@ -901,16 +901,22 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
     private const FOLLOW_UP_WEIGHT_CODES = [
         // ใส่รหัสน้ำหนักที่ต้องติดตาม
     ];
-   public function dashboard_overview()
+   public function dashboard_overview(Request $request)
 {
-    $doctor_id = 'test';
+    // $doctor_id = Session::get('doctor_id');
 
-    if ($doctor_id === null || $doctor_id === '') {
-        return response()->json([
-            'success' => false,
-            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
-        ], 401);
-    }
+    // if ($doctor_id === null || $doctor_id === '') {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+    //     ], 401);
+    // }
+
+    $validated = $request->validate([
+        'doctor_id' => 'required|string|max:255',
+    ]);
+
+    $doctor_id = $validated['doctor_id'];
 
     /*
      * ปรับรหัสให้ตรงกับค่าที่ระบบบันทึกจริง
@@ -1287,19 +1293,27 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
     ]);
 }
 
-//public function get_patient_detail(Request $request, $patient_id)
-public function get_patient_detail()
+public function get_patient_detail(Request $request)
 {
     $patient_id = 'Ucd1d3d9310f1afd627bbd1ea729f5be5';
     $doctorId = 'test';
     //$doctorId = Session::get('doctor_id');
 
-    if ($doctorId === null || $doctorId === '') {
-        return response()->json([
-            'success' => false,
-            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
-        ], 401);
-    }
+    // if ($doctorId === null || $doctorId === '') {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+    //     ], 401);
+    // }
+
+      $validated = $request->validate([
+        'doctor_id' => 'required|string|max:255',
+        'user_id' => 'required|string|max:255',
+
+    ]);
+
+    $doctor_id = $validated['doctor_id'];=
+    $user_id = $validated['user_id'];
 
     // $validated = $request->validate([
     //     'weight_page' => 'sometimes|integer|min:1',
