@@ -891,8 +891,11 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
 
     // เติมหลังตรวจความหมายรหัส weight_status ของระบบ
     private const WEIGHT_LABELS = [
-        // 0 => '...',
-        // 1 => '...',
+           0 => 'ไม่มีการบันทึก',
+           1 => 'น้ำหนักปกติ',
+           2 => 'น้ำหนักน้อยกว่าเกณฑ์',
+           3 => 'น้ำหนักเกินเกณฑ์',
+           4 => 'ภาวะแทรกซ้อน',
     ];
 
     private const FOLLOW_UP_WEIGHT_CODES = [
@@ -1229,7 +1232,7 @@ $dessert_din = tracker::join('tracker_activity','tracker.id','=','tracker_activi
         ) {
             $statusCode = (int) $user->status_code;
             $weightCode = $user->weight_status === null
-                ? null
+                ? 'ไม่มีการบันทึก'
                 : (int) $user->weight_status;
 
             $user->is_active = in_array(
@@ -1374,7 +1377,9 @@ public function get_patient_detail()
         'risk_level' => null,
         'pre_pregnancy_weight' => $patient->user_Pre_weight,
         'weight' => $patient->user_weight,
-        'weight_status_code' => $patient->weight_status,
+        'weight_status_code' => $patient->weight_status === null
+                ? 'ไม่มีข้อมูล'
+                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}");
         'updated_at' => $patient->updated_at,
     ];
 
@@ -1409,7 +1414,9 @@ public function get_patient_detail()
             'recorded_at' => $row->recorded_at,
             'gestational_week' => $row->gestational_week,
             'weight' => $row->weight,
-            'weight_status_code' => $row->weight_status_code,
+            'weight_status_code' => $row->weight_status_code === null
+                ? 'ไม่มีข้อมูล'
+                : ($weightLabels[$weightCode] ?? "รหัสน้ำหนัก {$weightCode}");
             // ยังไม่มีเกณฑ์ช่วงน้ำหนักแนะนำในฐานข้อมูล
             'recommended_weight_range' => [
                 'min' => null,
