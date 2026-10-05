@@ -18,7 +18,7 @@ return new class extends Migration
 
         Schema::create('insulin_plans', function (Blueprint $table) {
                 $table->id();
-
+                $table->string('user_id', 255);
                 $table->foreignId('user_id')
                     ->constrained('users_register')
                     ->restrictOnDelete();

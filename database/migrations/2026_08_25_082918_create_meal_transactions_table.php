@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('meal_transactions', function (Blueprint $table) {
             $table->id();
-
+            $table->string('user_id', 255);
             // ผู้รับประทานอาหาร
             $table->foreignId('user_id')
                 ->constrained('users_register')
