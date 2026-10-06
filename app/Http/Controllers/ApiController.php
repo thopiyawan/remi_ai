@@ -2026,7 +2026,7 @@ public function patient_health_history(Request $request)
 public function patient_nutrition_history(Request $request)
 {
     $validated = $request->validate([
-        'user_id' => 'required|integer|min:1',
+        'user_id' => 'sometimes|string|max:255',
         'start_date' => 'required|date_format:Y-m-d',
         'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
         'meal_page' => 'sometimes|integer|min:1',
