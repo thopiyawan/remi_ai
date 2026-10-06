@@ -2458,7 +2458,7 @@ public function patient_diabetes_history(Request $request)
     // -----------------------------------------
 
     $patient = DB::table('users_register as p')
-        ->where('p.id', $validated['user_id'])
+        ->where('p.user_id', $validated['user_id'])
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
