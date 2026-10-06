@@ -2981,7 +2981,7 @@ public function food_review_detail(Request $request)
         'item_log_page' => 'sometimes|integer|min:1',
     ]);
 
-    // $doctorId = Session::get('doctor_id');
+    $doctorId = Session::get('doctor_id');
 
     // if (($doctorId === null || $doctorId === '')
     //     && app()->environment('local')) {
