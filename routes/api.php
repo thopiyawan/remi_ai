@@ -199,3 +199,6 @@ Route::post('/get_patient_detail', [ApiController::class, 'get_patient_detail'])
 Route::post('/get_health_history', [ApiController::class, 'patient_health_history']);
 Route::post('/get_nutrition_history', [ApiController::class, 'patient_nutrition_history']);
 Route::post('/get_diabetes_history', [ApiController::class, 'patient_diabetes_history']);
+
+Route::post('/food_review_queue', [ApiController::class, 'food_review_queue']);
+Route::post('/food_review_detail', [ApiController::class, 'food_review_detail']);

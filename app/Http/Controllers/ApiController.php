@@ -2831,4 +2831,414 @@ public function patient_diabetes_history(Request $request)
     ]);
 }
 
+private function doctorMealQuery($doctorId)
+{
+    return DB::table('meal_transactions as m')
+        ->join('users_register as p', 'p.id', '=', 'm.user_id')
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        });
+}
+
+public function food_review_queue(Request $request)
+{
+    $input = $request->validate([
+        'doctor_id' => 'sometimes|string|max:255',
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'review_status' => 'sometimes|string|max:30',
+        'page' => 'sometimes|integer|min:1',
+        'per_page' => 'sometimes|integer|min:1|max:100',
+    ]);
+
+    $doctorId = Session::get('doctor_id');
+
+    if (($doctorId === null || $doctorId === '')
+        && app()->environment('local')) {
+        $doctorId = $input['doctor_id'] ?? null;
+    }
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    // ค่าเฉลี่ย confidence ของรายการอาหารที่ยังไม่ถูกลบ
+    $confidenceQuery = DB::table('meal_items')
+        ->whereNull('deleted_at')
+        ->select('meal_transaction_id')
+        ->selectRaw('AVG(confidence_score) as confidence_average')
+        ->selectRaw('COUNT(confidence_score) as confidence_item_count')
+        ->selectRaw('COUNT(*) as food_item_count')
+        ->groupBy('meal_transaction_id');
+
+    $query = $this->doctorMealQuery($doctorId)
+        ->leftJoinSub($confidenceQuery, 'c', function ($join) {
+            $join->on('c.meal_transaction_id', '=', 'm.id');
+        })
+        // เปลี่ยนให้ตรงกับค่าที่ระบบใช้จริง
+        ->where('m.ai_status', 'completed')
+        ->where(
+            'm.review_status',
+            $input['review_status'] ?? 'pending'
+        );
+
+    if (!empty($input['start_date'])) {
+        $query->where('m.meal_date', '>=', $input['start_date']);
+    }
+
+    if (!empty($input['end_date'])) {
+        $query->where('m.meal_date', '<=', $input['end_date']);
+    }
+
+    $queue = $query
+        ->select(
+            'm.id',
+            'p.id as patient_id',
+            'p.user_name as name',
+            'p.hospital_num as hn',
+            'm.meal_type as meal',
+            'm.meal_date as date',
+            'm.meal_time as time',
+            'm.ai_status',
+            'm.review_status',
+            'm.gdm_risk',
+            'm.created_at',
+            'm.updated_at',
+            'c.confidence_average',
+            'c.confidence_item_count',
+            'c.food_item_count'
+        )
+        // ความเร่งด่วนของคิว ไม่ใช่การวินิจฉัยฉุกเฉิน
+        ->selectRaw("
+            CASE
+                WHEN m.gdm_risk = 'high' THEN 'high'
+                ELSE 'normal'
+            END as urgency
+        ")
+        ->selectRaw("
+            CASE
+                WHEN m.gdm_risk = 'high' THEN 1
+                ELSE 2
+            END as priority
+        ")
+        ->orderBy('priority')
+        ->orderBy('m.created_at')
+        ->orderBy('m.id')
+        ->paginate(
+            (int) ($input['per_page'] ?? 20),
+            ['*'],
+            'page',
+            (int) ($input['page'] ?? 1)
+        );
+
+    $queue->getCollection()->transform(function ($row) {
+        $row->ai_confidence = [
+            'average' => $row->confidence_average === null
+                ? null
+                : round((float) $row->confidence_average, 2),
+            'method' => 'mean_of_available_item_scores',
+            'items_with_score' => (int) $row->confidence_item_count,
+            'total_items' => (int) $row->food_item_count,
+            // ยังไม่ยืนยันว่า confidence ใช้สเกล 0–1 หรือ 0–100
+            'scale' => null,
+        ];
+
+        unset(
+            $row->confidence_average,
+            $row->confidence_item_count,
+            $row->food_item_count
+        );
+
+        return $row;
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'items' => $queue->items(),
+            'total' => $queue->total(),
+            'current_page' => $queue->currentPage(),
+            'per_page' => $queue->perPage(),
+            'last_page' => $queue->lastPage(),
+        ],
+    ]);
+}
+
+public function food_review_detail(Request $request)
+{
+    $input = $request->validate([
+        'meal_id' => 'required|integer|min:1',
+        'doctor_id' => 'sometimes|string|max:255',
+        'meal_log_page' => 'sometimes|integer|min:1',
+        'item_log_page' => 'sometimes|integer|min:1',
+    ]);
+
+    $doctorId = Session::get('doctor_id');
+
+    if (($doctorId === null || $doctorId === '')
+        && app()->environment('local')) {
+        $doctorId = $input['doctor_id'] ?? null;
+    }
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    $meal = $this->doctorMealQuery($doctorId)
+        ->where('m.id', $input['meal_id'])
+        ->select(
+            'm.*',
+            'p.user_name as patient_name',
+            'p.hospital_num as hn'
+        )
+        ->first();
+
+    if (!$meal) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบมื้ออาหารหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    $number = static fn ($value) => $value === null
+        ? null
+        : (float) $value;
+
+    $pageData = static fn ($page) => [
+        'items' => $page->items(),
+        'total' => $page->total(),
+        'current_page' => $page->currentPage(),
+        'per_page' => $page->perPage(),
+        'last_page' => $page->lastPage(),
+    ];
+
+    // รายการอาหารปัจจุบันที่แก้ไขได้
+    $items = DB::table('meal_items')
+        ->where('meal_transaction_id', $meal->id)
+        ->whereNull('deleted_at')
+        ->orderBy('id')
+        ->get([
+            'id',
+            'food_name',
+            'portion',
+            'unit',
+            'weight_g',
+            'calorie',
+            'carbohydrate',
+            'protein',
+            'fat',
+            'fiber',
+            'sugar',
+            'sodium',
+            'confidence_score',
+            'created_source',
+            'last_updated_source',
+            'created_by',
+            'updated_by',
+            'created_at',
+            'updated_at',
+        ]);
+
+    $editableItems = $items->map(function ($item) use ($number) {
+        return [
+            'id' => $item->id,
+            'name' => $item->food_name,
+            'portion' => $number($item->portion),
+            'unit' => $item->unit,
+            'weight_g' => $number($item->weight_g),
+            'energy_kcal' => $number($item->calorie),
+            'nutrients' => [
+                'carbohydrate_g' => $number($item->carbohydrate),
+                'protein_g' => $number($item->protein),
+                'fat_g' => $number($item->fat),
+                'fiber_g' => $number($item->fiber),
+                'sugar_g' => $number($item->sugar),
+                'sodium_mg' => $number($item->sodium),
+            ],
+            'confidence_score' => $number($item->confidence_score),
+            'created_source' => $item->created_source,
+            'last_updated_source' => $item->last_updated_source,
+            'created_by' => $item->created_by,
+            'updated_by' => $item->updated_by,
+            'updated_at' => $item->updated_at,
+        ];
+    })->values();
+
+    $confidenceScores = $items
+        ->pluck('confidence_score')
+        ->filter(fn ($score) => $score !== null);
+
+    $confidence = [
+        'average' => $confidenceScores->isEmpty()
+            ? null
+            : round((float) $confidenceScores->avg(), 2),
+        'method' => 'mean_of_available_item_scores',
+        'items_with_score' => $confidenceScores->count(),
+        'total_items' => $items->count(),
+        'scale' => null,
+    ];
+
+    // ประวัติระดับมื้อ
+    $mealLogsBase = DB::table('meal_logs')
+        ->where('meal_transaction_id', $meal->id);
+
+    $mealLogs = (clone $mealLogsBase)
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            [
+                'id',
+                'action',
+                'field_name',
+                'old_value',
+                'new_value',
+                'change_reason',
+                'actor_type',
+                'note',
+                'created_at',
+            ],
+            'meal_log_page',
+            (int) ($input['meal_log_page'] ?? 1)
+        );
+
+    /*
+     * ประวัติระดับรายการอาหาร
+     * รวมรายการที่ถูก soft delete เพื่อให้เห็นประวัติการลบด้วย
+     */
+    $itemLogs = DB::table('meal_item_logs as l')
+        ->join('meal_items as i', 'i.id', '=', 'l.meal_item_id')
+        ->where('i.meal_transaction_id', $meal->id)
+        ->select(
+            'l.id',
+            'l.meal_item_id',
+            'l.meal_log_id',
+            'l.action',
+            'l.field_name',
+            'l.old_value',
+            'l.new_value',
+            'l.change_reason',
+            'l.actor_type',
+            'l.created_at'
+        )
+        ->orderByDesc('l.created_at')
+        ->orderByDesc('l.id')
+        ->paginate(
+            20,
+            ['*'],
+            'item_log_page',
+            (int) ($input['item_log_page'] ?? 1)
+        );
+
+    // การเปลี่ยน review_status ล่าสุดที่มี log
+    $latestStatusChange = (clone $mealLogsBase)
+        ->where('field_name', 'review_status')
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->first([
+            'id',
+            'old_value',
+            'new_value',
+            'actor_type',
+            'note',
+            'created_at',
+        ]);
+
+    // หมายเหตุล่าสุดที่มีข้อความ ไม่ถือว่าเป็นข้อความส่งกลับ
+    $latestNote = (clone $mealLogsBase)
+        ->whereNotNull('note')
+        ->whereRaw("TRIM(note) <> ''")
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->first(['note', 'created_at']);
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'meal_info' => [
+                'id' => $meal->id,
+                'patient_id' => $meal->user_id,
+                'name' => $meal->patient_name,
+                'hn' => $meal->hn,
+                'meal' => $meal->meal_type,
+                'date' => $meal->meal_date,
+                'time' => $meal->meal_time,
+                'urgency' => $meal->gdm_risk === 'high'
+                    ? 'high'
+                    : 'normal',
+                'ai_status' => $meal->ai_status,
+                'review_status' => $meal->review_status,
+            ],
+
+            'food_image' => [
+                'url' => $meal->image_url,
+                'meal_date' => $meal->meal_date,
+                'meal_time' => $meal->meal_time,
+                'recorded_at' => $meal->created_at,
+                'captured_at' => null,
+            ],
+
+            'ai_analysis' => [
+                'status' => $meal->ai_status,
+                'value_scope' => 'latest_stored_values',
+                'original_ai_snapshot_available' => false,
+
+                'foods' => $editableItems,
+
+                'energy_kcal' => $number($meal->total_calorie),
+                'nutrients' => [
+                    'carbohydrate_g' => $number($meal->total_carbohydrate),
+                    'protein_g' => $number($meal->total_protein),
+                    'fat_g' => $number($meal->total_fat),
+                    'fiber_g' => $number($meal->total_fiber),
+                    'sugar_g' => $number($meal->total_sugar),
+                    'sodium_mg' => $number($meal->total_sodium),
+                ],
+                'gdm_analysis' => [
+                    'risk_level' => $meal->gdm_risk,
+                    'recommendation' => $meal->recommendation,
+                ],
+                'confidence' => $confidence,
+            ],
+
+            'editable_food_items' => $editableItems,
+
+            'recommendations_and_notes' => [
+                'recommendation' => $meal->recommendation,
+                'latest_note' => $latestNote?->note,
+                'note_recorded_at' => $latestNote?->created_at,
+            ],
+
+            'review_result' => [
+                'status' => $meal->review_status,
+
+                // SQL ยังไม่มีผู้ตรวจและเวลายืนยันตรวจโดยเฉพาะ
+                'reviewer' => null,
+                'reviewed_at' => null,
+
+                'latest_status_change' => $latestStatusChange,
+
+                // Logs อาจมีทั้งการแก้โดย AI คนไข้ และบุคลากร
+                // ส่ง actor_type เพื่อแยกผู้กระทำตามชนิด
+                'meal_changes' => $pageData($mealLogs),
+                'food_item_changes' => $pageData($itemLogs),
+
+                'reply_message' => null,
+                'reply_sent_at' => null,
+            ],
+        ],
+    ]);
+}
+
 }
