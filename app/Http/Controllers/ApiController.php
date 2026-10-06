@@ -2022,5 +2022,398 @@ public function patient_health_history(Request $request)
     ]);
 }
 
+
+public function patient_nutrition_history(Request $request)
+{
+    $validated = $request->validate([
+        'user_id' => 'required|integer|min:1',
+        'start_date' => 'required|date_format:Y-m-d',
+        'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+        'meal_page' => 'sometimes|integer|min:1',
+        'vitamin_page' => 'sometimes|integer|min:1',
+        'doctor_id' => 'sometimes|string|max:255',
+    ]);
+
+    $start = CarbonImmutable::parse($validated['start_date']);
+    $end = CarbonImmutable::parse($validated['end_date']);
+    $totalDays = (int) $start->diffInDays($end) + 1;
+
+    if ($totalDays > 366) {
+        return response()->json([
+            'success' => false,
+            'message' => 'เลือกช่วงวันที่ได้ไม่เกิน 366 วัน',
+        ], 422);
+    }
+
+    $doctorId = Session::get('doctor_id');
+
+    // รับ doctor_id แบบไม่ใช้ Session เฉพาะทดสอบ local
+    if (($doctorId === null || $doctorId === '')
+        && app()->environment('local')) {
+        $doctorId = $validated['doctor_id'] ?? null;
+    }
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    $patient = DB::table('users_register as p')
+        ->where('p.id', $validated['user_id'])
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        })
+        ->select(
+            'p.id',
+            'p.user_id',
+            'p.user_name',
+            'p.hospital_num',
+            'p.user_age',
+            'p.preg_week',
+            'p.due_date',
+            'p.calorie'
+        )
+        ->first();
+
+    if (!$patient) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    $number = static function ($value) {
+        if ($value === null || !is_numeric(trim((string) $value))) {
+            return null;
+        }
+
+        return (float) trim((string) $value);
+    };
+
+    $pageData = static function ($page) {
+        return [
+            'items' => $page->items(),
+            'total' => $page->total(),
+            'current_page' => $page->currentPage(),
+            'per_page' => $page->perPage(),
+            'last_page' => $page->lastPage(),
+        ];
+    };
+
+    $startDate = $validated['start_date'];
+    $endDate = $validated['end_date'];
+
+    // ----------------------------------
+    // 1. เป้าหมายโภชนาการ
+    // เป็นเป้าหมายปัจจุบัน ไม่ใช่ประวัติเป้าหมาย
+    // ----------------------------------
+
+    $energyTarget = $number($patient->calorie);
+
+    if ($energyTarget !== null && $energyTarget <= 0) {
+        $energyTarget = null;
+    }
+
+    $plan = $energyTarget === null
+        ? null
+        : DB::table('meal_planing')
+            ->where('caloric_level', $energyTarget)
+            ->orderBy('id')
+            ->first();
+
+    /*
+     * เปิดเป็น true เมื่อยืนยันว่า c / p / f
+     * คือเปอร์เซ็นต์พลังงานจากสารอาหารจริง
+     */
+    $percentagesConfirmed = (bool) config(
+        'dashboard.meal_plan_percentages_confirmed',
+        false
+    );
+
+    $canCalculate = $plan !== null && $percentagesConfirmed;
+
+    $targets = [
+        'energy_kcal' => $energyTarget,
+
+        'carbohydrate_g' => $canCalculate
+            ? round($energyTarget * $plan->c / 100 / 4, 2)
+            : null,
+
+        'protein_g' => $canCalculate
+            ? round($energyTarget * $plan->p / 100 / 4, 2)
+            : null,
+
+        'fat_g' => $canCalculate
+            ? round($energyTarget * $plan->f / 100 / 9, 2)
+            : null,
+
+        'fiber_g' => null,
+        'scope' => 'current_target',
+    ];
+
+    // ----------------------------------
+    // 2. ประวัติมื้ออาหารตามวันที่รับประทาน
+    // ----------------------------------
+
+    $mealBase = DB::table('meal_transactions')
+        ->where('user_id', $patient->id)
+        ->whereBetween('meal_date', [$startDate, $endDate]);
+
+    $meals = (clone $mealBase)
+        ->orderByDesc('meal_date')
+        ->orderByDesc('meal_time')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            ['*'],
+            'meal_page',
+            (int) ($validated['meal_page'] ?? 1)
+        );
+
+    // ดึงรายการอาหารครั้งเดียว ป้องกัน Query ทีละมื้อ
+    $mealIds = $meals->getCollection()->pluck('id');
+
+    $itemsByMeal = DB::table('meal_items')
+        ->whereIn('meal_transaction_id', $mealIds)
+        ->whereNull('deleted_at')
+        ->orderBy('id')
+        ->get([
+            'id',
+            'meal_transaction_id',
+            'food_name',
+            'portion',
+            'unit',
+            'weight_g',
+            'calorie',
+            'carbohydrate',
+            'protein',
+            'fat',
+            'fiber',
+            'confidence_score',
+            'created_source',
+            'last_updated_source',
+        ])
+        ->groupBy('meal_transaction_id');
+
+    $meals->getCollection()->transform(
+        function ($meal) use ($itemsByMeal, $number) {
+            $items = $itemsByMeal->get($meal->id, collect());
+
+            return [
+                'id' => $meal->id,
+                'date' => $meal->meal_date,
+                'time' => $meal->meal_time,
+                'meal' => $meal->meal_type,
+                'image_url' => $meal->image_url,
+                'energy_kcal' => $number($meal->total_calorie),
+                'review_status' => $meal->review_status,
+
+                'foods' => $items->map(function ($item) use ($number) {
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->food_name,
+                        'portion' => $number($item->portion),
+                        'unit' => $item->unit,
+                        'weight_g' => $number($item->weight_g),
+                        'energy_kcal' => $number($item->calorie),
+                        'nutrients' => [
+                            'carbohydrate_g' => $number($item->carbohydrate),
+                            'protein_g' => $number($item->protein),
+                            'fat_g' => $number($item->fat),
+                            'fiber_g' => $number($item->fiber),
+                        ],
+                        // ส่งค่าตาม DB ยังไม่สมมติว่าเป็น 0–1 หรือ 0–100
+                        'confidence_score' => $number($item->confidence_score),
+                        'created_source' => $item->created_source,
+                        'last_updated_source' => $item->last_updated_source,
+                    ];
+                })->values(),
+
+                'analysis' => [
+                    'ai_status' => $meal->ai_status,
+                    'value_scope' => 'latest_stored_values',
+                    'energy_kcal' => $number($meal->total_calorie),
+                    'nutrients' => [
+                        'carbohydrate_g' => $number($meal->total_carbohydrate),
+                        'protein_g' => $number($meal->total_protein),
+                        'fat_g' => $number($meal->total_fat),
+                        'fiber_g' => $number($meal->total_fiber),
+                    ],
+                    // ไม่มี confidence ระดับมื้อใน SQL
+                    'meal_confidence_score' => null,
+                    'gdm_risk' => $meal->gdm_risk,
+                    'recommendation' => $meal->recommendation,
+                ],
+                'recorded_at' => $meal->created_at,
+                'updated_at' => $meal->updated_at,
+            ];
+        }
+    );
+
+    // ----------------------------------
+    // 3. ประวัติวิตามิน
+    // tracker.date ต้องเก็บเป็น YYYY-MM-DD
+    // ----------------------------------
+
+    $vitaminBase = DB::table('tracker')
+        ->where('user_id', $patient->user_id)
+        ->whereNull('deleted_at')
+        ->whereBetween('date', [$startDate, $endDate])
+        ->whereNotNull('vitamin')
+        ->whereRaw("TRIM(vitamin) <> ''");
+
+    $vitaminRecordedDays = (clone $vitaminBase)
+        ->distinct()
+        ->count('date');
+
+    $vitamins = (clone $vitaminBase)
+        ->orderByDesc('date')
+        ->orderByDesc('id')
+        ->paginate(
+            20,
+            ['id', 'date', 'vitamin', 'created_at'],
+            'vitamin_page',
+            (int) ($validated['vitamin_page'] ?? 1)
+        );
+
+    $vitamins->getCollection()->transform(function ($row) {
+        return [
+            'id' => $row->id,
+            'vitamin_type' => null,
+            'date' => $row->date,
+            'status' => null,
+            'raw_value' => $row->vitamin,
+            'recorded_at' => $row->created_at,
+        ];
+    });
+
+    // ----------------------------------
+    // 4. สรุปย้อนหลัง
+    // ใช้เฉพาะมื้อที่ AI วิเคราะห์เสร็จ
+    // เพื่อไม่เอาค่า default 0 ของมื้อรอวิเคราะห์มารวม
+    // ----------------------------------
+
+    $aiCompleted = config('dashboard.ai_completed_status', 'completed');
+
+    $daily = (clone $mealBase)
+        ->where('ai_status', $aiCompleted)
+        ->select('meal_date')
+        ->selectRaw('COUNT(*) as meal_count')
+        ->selectRaw('SUM(total_calorie) as energy_kcal')
+        ->selectRaw('SUM(total_carbohydrate) as carbohydrate_g')
+        ->selectRaw('SUM(total_protein) as protein_g')
+        ->selectRaw('SUM(total_fat) as fat_g')
+        ->selectRaw('SUM(total_fiber) as fiber_g')
+        ->groupBy('meal_date')
+        ->orderBy('meal_date')
+        ->get();
+
+    $recordedDays = $daily->count();
+
+    $nutrientFields = [
+        'energy_kcal',
+        'carbohydrate_g',
+        'protein_g',
+        'fat_g',
+        'fiber_g',
+    ];
+
+    $averageRecordedDays = [];
+    $totalNutrition = [];
+
+    foreach ($nutrientFields as $field) {
+        $sum = (float) $daily->sum($field);
+
+        $totalNutrition[$field] = round($sum, 2);
+
+        $averageRecordedDays[$field] = $recordedDays > 0
+            ? round($sum / $recordedDays, 2)
+            : null;
+    }
+
+    /*
+     * จำนวนวันที่ถึงเป้าหมาย:
+     * ใช้เกณฑ์ช่วงพลังงานจาก configuration ที่ทีมกำหนด
+     * ไม่กำหนดเกณฑ์ทางคลินิกเอง
+     *
+     * ตัวอย่าง tolerance 10 = ภายใน ±10% ของเป้าหมาย
+     * หากยังไม่ได้กำหนด ส่ง null
+     */
+    $tolerance = config('dashboard.energy_target_tolerance_percent');
+
+    $targetRange = null;
+    $daysReachingTarget = null;
+
+    if ($energyTarget !== null
+        && is_numeric($tolerance)
+        && (float) $tolerance >= 0
+        && (float) $tolerance <= 100) {
+        $fraction = (float) $tolerance / 100;
+
+        $min = $energyTarget * (1 - $fraction);
+        $max = $energyTarget * (1 + $fraction);
+
+        $targetRange = [
+            'min_kcal' => round($min, 2),
+            'max_kcal' => round($max, 2),
+        ];
+
+        $daysReachingTarget = $daily->filter(
+            fn ($row) =>
+                (float) $row->energy_kcal >= $min
+                && (float) $row->energy_kcal <= $max
+        )->count();
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'basic_info' => [
+                'id' => (int) $patient->id,
+                'name' => $patient->user_name,
+                'hn' => $patient->hospital_num,
+                'age' => $patient->user_age,
+                'gestational_week' => $patient->preg_week,
+                'due_date' => $patient->due_date,
+            ],
+
+            'selected_period' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_days' => $totalDays,
+            ],
+
+            'nutrition_targets' => $targets,
+            'meal_history' => $pageData($meals),
+
+            'vitamin_history' => [
+                'records' => $pageData($vitamins),
+                'recorded_days' => $vitaminRecordedDays,
+                'days_without_record' => $totalDays - $vitaminRecordedDays,
+                // ไม่มีบันทึก ≠ ไม่ได้กิน
+                'missed_intake_days' => null,
+            ],
+
+            'retrospective_summary' => [
+                'total_meals' => (clone $mealBase)->count(),
+                'analyzed_meals' => (int) $daily->sum('meal_count'),
+                'days_with_analyzed_meals' => $recordedDays,
+                'total_nutrition' => $totalNutrition,
+                'average_per_recorded_day' => $averageRecordedDays,
+                'days_reaching_energy_target' => $daysReachingTarget,
+                'energy_target_range' => $targetRange,
+                'daily_totals' => $daily,
+            ],
+        ],
+    ]);
+}
+
 }
     

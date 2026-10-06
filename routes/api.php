@@ -197,3 +197,4 @@ Route::put('update_user', [ApiController::class, 'update_user']);
 Route::post('/dashboard_overview', [ApiController::class, 'dashboard_overview']);
 Route::post('/get_patient_detail', [ApiController::class, 'get_patient_detail']);
 Route::post('/get_health_history', [ApiController::class, 'patient_health_history']);
+Route::post('/get_nutrition_history', [ApiController::class, 'patient_nutrition_history']);
