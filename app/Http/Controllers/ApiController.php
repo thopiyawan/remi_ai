@@ -2858,17 +2858,17 @@ public function food_review_queue(Request $request)
 
     $doctorId = Session::get('doctor_id');
 
-    if (($doctorId === null || $doctorId === '')
-        && app()->environment('local')) {
-        $doctorId = $input['doctor_id'] ?? null;
-    }
+    // if (($doctorId === null || $doctorId === '')
+    //     && app()->environment('local')) {
+    //     $doctorId = $input['doctor_id'] ?? null;
+    // }
 
-    if ($doctorId === null || $doctorId === '') {
-        return response()->json([
-            'success' => false,
-            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
-        ], 401);
-    }
+    // if ($doctorId === null || $doctorId === '') {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+    //     ], 401);
+    // }
 
     // ค่าเฉลี่ย confidence ของรายการอาหารที่ยังไม่ถูกลบ
     $confidenceQuery = DB::table('meal_items')
@@ -2981,19 +2981,19 @@ public function food_review_detail(Request $request)
         'item_log_page' => 'sometimes|integer|min:1',
     ]);
 
-    $doctorId = Session::get('doctor_id');
+    // $doctorId = Session::get('doctor_id');
 
-    if (($doctorId === null || $doctorId === '')
-        && app()->environment('local')) {
-        $doctorId = $input['doctor_id'] ?? null;
-    }
+    // if (($doctorId === null || $doctorId === '')
+    //     && app()->environment('local')) {
+    //     $doctorId = $input['doctor_id'] ?? null;
+    // }
 
-    if ($doctorId === null || $doctorId === '') {
-        return response()->json([
-            'success' => false,
-            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
-        ], 401);
-    }
+    // if ($doctorId === null || $doctorId === '') {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+    //     ], 401);
+    // }
 
     $meal = $this->doctorMealQuery($doctorId)
         ->where('m.id', $input['meal_id'])
