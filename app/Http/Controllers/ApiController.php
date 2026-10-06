@@ -2061,7 +2061,7 @@ public function patient_nutrition_history(Request $request)
     }
 
     $patient = DB::table('users_register as p')
-        ->where('p.id', $validated['user_id'])
+        ->where('p.user_id', $validated['user_id'])
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
@@ -2163,7 +2163,7 @@ public function patient_nutrition_history(Request $request)
     // ----------------------------------
 
     $mealBase = DB::table('meal_transactions')
-        ->where('user_id', $patient->id)
+        ->where('user_id', $patient->user_id)
         ->whereBetween('meal_date', [$startDate, $endDate]);
 
     $meals = (clone $mealBase)
