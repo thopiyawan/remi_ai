@@ -2497,7 +2497,7 @@ public function patient_diabetes_history(Request $request)
 
     $periodMap = [
         1 => 'before_meal',
-        2 => 'after_meal_1h',
+        3 => 'after_meal_1h',
         4 => 'after_meal_2h',
     ];
 
