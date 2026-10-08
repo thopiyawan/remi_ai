@@ -2857,7 +2857,7 @@ public function food_review_queue(Request $request)
     ]);
 
    // $doctorId = Session::get('doctor_id');
-     $doctorId = $data['doctor_id'];
+     $doctorId = $input['doctor_id'];
 
     // if (($doctorId === null || $doctorId === '')
     //     && app()->environment('local')) {
@@ -3287,7 +3287,7 @@ public function insert_food(Request $request)
     //     ], 401);
     // }
 
-    $doctorId = $data['doctor_id'];
+    $doctorId = $input['doctor_id'];
     // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
     $patient = DB::table('users_register as p')
         ->where('p.user_id', $data['user_id'])
