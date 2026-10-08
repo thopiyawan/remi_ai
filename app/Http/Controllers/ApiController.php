@@ -3364,7 +3364,6 @@ public function insert_food(Request $request)
         $now = now();
 
         $mealData = [
-            'id' => $patient->id,
             'user_id' => $patient->user_id,
             'meal_type' => $data['meal_type'],
             'meal_date' => $data['meal_date'],
