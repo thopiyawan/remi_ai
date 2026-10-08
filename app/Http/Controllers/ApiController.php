@@ -2856,7 +2856,8 @@ public function food_review_queue(Request $request)
         'per_page' => 'sometimes|integer|min:1|max:100',
     ]);
 
-    $doctorId = Session::get('doctor_id');
+   // $doctorId = Session::get('doctor_id');
+     $doctorId = $data['doctor_id'];
 
     // if (($doctorId === null || $doctorId === '')
     //     && app()->environment('local')) {
@@ -2980,8 +2981,8 @@ public function food_review_detail(Request $request)
         'meal_log_page' => 'sometimes|integer|min:1',
         'item_log_page' => 'sometimes|integer|min:1',
     ]);
-
-    $doctorId = Session::get('doctor_id');
+   $doctorId = $data['doctor_id'];
+    //$doctorId = Session::get('doctor_id');
 
     // if (($doctorId === null || $doctorId === '')
     //     && app()->environment('local')) {
