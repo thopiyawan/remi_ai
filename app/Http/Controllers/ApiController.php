@@ -3302,7 +3302,7 @@ public function insert_food(Request $request)
     if (!$patient) {
         return response()->json([
             'success' => false,
-            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+            'message' => $doctorId,
         ], 404);
     }
 
