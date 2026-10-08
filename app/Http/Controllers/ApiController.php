@@ -3288,7 +3288,7 @@ public function insert_food(Request $request)
 
     // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
     $patient = DB::table('users_register as p')
-        ->where('p.id', $data['user_id'])
+        ->where('p.user_id', $data['user_id'])
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
