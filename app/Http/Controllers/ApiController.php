@@ -2981,7 +2981,7 @@ public function food_review_detail(Request $request)
         'meal_log_page' => 'sometimes|integer|min:1',
         'item_log_page' => 'sometimes|integer|min:1',
     ]);
-   $doctorId = $data['doctor_id'];
+   $doctorId = $input['doctor_id'];
     //$doctorId = Session::get('doctor_id');
 
     // if (($doctorId === null || $doctorId === '')
@@ -3287,7 +3287,7 @@ public function insert_food(Request $request)
     //     ], 401);
     // }
 
-    $doctorId = $input['doctor_id'];
+    $doctorId = $data['doctor_id'];
     // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
     $patient = DB::table('users_register as p')
         ->where('p.user_id', $data['user_id'])
