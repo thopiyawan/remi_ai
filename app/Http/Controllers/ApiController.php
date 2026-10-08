@@ -3298,7 +3298,7 @@ public function insert_food(Request $request)
                 ->where('pd.doctor_id', $doctorId)
                 ->whereNull('pd.deleted_at');
         })
-        ->first(['p.id', 'p.user_name']);
+        ->first(['p.id', 'p.user_id', 'p.user_name']);
 
     if (!$patient) {
         return response()->json([
@@ -3363,7 +3363,8 @@ public function insert_food(Request $request)
         $now = now();
 
         $mealData = [
-            'user_id' => $patient->id,
+            'id' => $patient->id,
+            'user_id' => $patient->user_id,
             'meal_type' => $data['meal_type'],
             'meal_date' => $data['meal_date'],
             'meal_time' => $data['meal_time'] ?? null,
