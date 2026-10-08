@@ -2834,7 +2834,7 @@ public function patient_diabetes_history(Request $request)
 private function doctorMealQuery($doctorId)
 {
     return DB::table('meal_transactions as m')
-        ->join('users_register as p', 'p.id', '=', 'm.user_id')
+        ->join('users_register as p', 'p.user_id', '=', 'm.user_id')
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
