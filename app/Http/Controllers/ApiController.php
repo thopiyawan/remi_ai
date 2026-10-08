@@ -3273,18 +3273,18 @@ public function insert_food(Request $request)
 
     $doctorId = Session::get('doctor_id');
 
-    // ทดสอบโดยส่ง doctor_id ได้เฉพาะ local
-    if (($doctorId === null || $doctorId === '')
-        && app()->environment('local')) {
-        $doctorId = $data['doctor_id'] ?? null;
-    }
+    // // ทดสอบโดยส่ง doctor_id ได้เฉพาะ local
+    // if (($doctorId === null || $doctorId === '')
+    //     && app()->environment('local')) {
+    //     $doctorId = $data['doctor_id'] ?? null;
+    // }
 
-    if ($doctorId === null || $doctorId === '') {
-        return response()->json([
-            'success' => false,
-            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
-        ], 401);
-    }
+    // if ($doctorId === null || $doctorId === '') {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+    //     ], 401);
+    // }
 
     // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
     $patient = DB::table('users_register as p')
