@@ -3271,7 +3271,7 @@ public function insert_food(Request $request)
         'foods.*.sodium' => 'nullable|numeric|min:0|max:99999999.99',
     ]);
 
-    $doctorId = Session::get('doctor_id');
+    //$doctorId = Session::get('doctor_id');
 
     // // ทดสอบโดยส่ง doctor_id ได้เฉพาะ local
     // if (($doctorId === null || $doctorId === '')
@@ -3286,6 +3286,7 @@ public function insert_food(Request $request)
     //     ], 401);
     // }
 
+    $doctorId = $data['user_id'];
     // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
     $patient = DB::table('users_register as p')
         ->where('p.user_id', $data['user_id'])
@@ -3302,7 +3303,7 @@ public function insert_food(Request $request)
     if (!$patient) {
         return response()->json([
             'success' => false,
-            'message' => $doctorId,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
         ], 404);
     }
 
