@@ -3241,4 +3241,198 @@ public function food_review_detail(Request $request)
     ]);
 }
 
+
+public function insert_food(Request $request)
+{
+    $data = $request->validate([
+        // users_register.id ไม่ใช่ LINE user_id
+        'user_id' => 'sometimes|string|max:255',
+        'doctor_id' => 'sometimes|string|max:255',
+
+        'meal_type' => 'required|string|max:30',
+        'meal_date' => 'required|date_format:Y-m-d',
+        'meal_time' => 'nullable|date_format:H:i',
+        'image_url' => 'nullable|url',
+        'recommendation' => 'nullable|string|max:5000',
+        'note' => 'nullable|string|max:5000',
+
+        'foods' => 'required|array|min:1|max:100',
+        'foods.*.name' => 'required|string|max:255',
+        'foods.*.portion' => 'nullable|numeric|min:0|max:99999999.99',
+        'foods.*.unit' => 'nullable|string|max:50',
+        'foods.*.weight_g' => 'nullable|numeric|min:0|max:99999999.99',
+
+        'foods.*.calorie' => 'required|numeric|min:0|max:99999999.99',
+        'foods.*.carbohydrate' => 'required|numeric|min:0|max:99999999.99',
+        'foods.*.protein' => 'required|numeric|min:0|max:99999999.99',
+        'foods.*.fat' => 'required|numeric|min:0|max:99999999.99',
+        'foods.*.fiber' => 'required|numeric|min:0|max:99999999.99',
+        'foods.*.sugar' => 'nullable|numeric|min:0|max:99999999.99',
+        'foods.*.sodium' => 'nullable|numeric|min:0|max:99999999.99',
+    ]);
+
+    $doctorId = Session::get('doctor_id');
+
+    // ทดสอบโดยส่ง doctor_id ได้เฉพาะ local
+    if (($doctorId === null || $doctorId === '')
+        && app()->environment('local')) {
+        $doctorId = $data['doctor_id'] ?? null;
+    }
+
+    if ($doctorId === null || $doctorId === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+        ], 401);
+    }
+
+    // ตรวจสิทธิ์แพทย์ต่อผู้ป่วย
+    $patient = DB::table('users_register as p')
+        ->where('p.id', $data['user_id'])
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        })
+        ->first(['p.id', 'p.user_name']);
+
+    if (!$patient) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    // รวมเป็นจำนวนเต็มหน่วย 0.01 เพื่อให้ยอดตรงกับค่าที่บันทึก
+    $nutritionFields = [
+        'calorie',
+        'carbohydrate',
+        'protein',
+        'fat',
+        'fiber',
+        'sugar',
+        'sodium',
+    ];
+
+    $foods = [];
+    $totalCents = array_fill_keys($nutritionFields, 0);
+
+    foreach ($data['foods'] as $food) {
+        $item = [
+            'food_name' => $food['name'],
+            'portion' => isset($food['portion'])
+                ? round((float) $food['portion'], 2)
+                : null,
+            'unit' => $food['unit'] ?? null,
+            'weight_g' => isset($food['weight_g'])
+                ? round((float) $food['weight_g'], 2)
+                : null,
+        ];
+
+        foreach ($nutritionFields as $field) {
+            $cents = (int) round((float) ($food[$field] ?? 0) * 100);
+
+            $item[$field] = number_format($cents / 100, 2, '.', '');
+            $totalCents[$field] += $cents;
+        }
+
+        $foods[] = $item;
+    }
+
+    // ป้องกันยอดรวมเกิน decimal(10,2)
+    foreach ($totalCents as $value) {
+        if ($value > 9999999999) {
+            return response()->json([
+                'success' => false,
+                'message' => 'สารอาหารรวมเกินขนาดที่ฐานข้อมูลรองรับ',
+            ], 422);
+        }
+    }
+
+    $result = DB::transaction(function () use (
+        $data,
+        $patient,
+        $doctorId,
+        $foods,
+        $totalCents
+    ) {
+        $now = now();
+
+        $mealData = [
+            'user_id' => $patient->id,
+            'meal_type' => $data['meal_type'],
+            'meal_date' => $data['meal_date'],
+            'meal_time' => $data['meal_time'] ?? null,
+            'image_url' => $data['image_url'] ?? null,
+
+            // เพิ่มโดยคน ไม่ใช่ผล AI
+            'ai_status' => 'manual',
+            'review_status' => 'pending',
+
+            'gdm_risk' => null,
+            'recommendation' => $data['recommendation'] ?? null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        foreach ($totalCents as $field => $cents) {
+            $mealData['total_' . $field] =
+                number_format($cents / 100, 2, '.', '');
+        }
+
+        $mealId = DB::table('meal_transactions')
+            ->insertGetId($mealData);
+
+        $itemIds = [];
+
+        foreach ($foods as $food) {
+            $itemIds[] = DB::table('meal_items')->insertGetId(
+                array_merge($food, [
+                    'meal_transaction_id' => $mealId,
+                    'confidence_score' => null,
+                    'created_source' => 'doctor',
+                    'last_updated_source' => 'doctor',
+                    'created_by' => (string) $doctorId,
+                    'updated_by' => (string) $doctorId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                    'deleted_at' => null,
+                ])
+            );
+        }
+
+        DB::table('meal_logs')->insert([
+            'meal_transaction_id' => $mealId,
+            'action' => 'create',
+            'field_name' => null,
+            'old_value' => null,
+            'new_value' => null,
+            'actor_type' => 'doctor',
+            'change_reason' => 'manual_entry',
+            'note' => $data['note'] ?? null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return [
+            'meal_id' => $mealId,
+            'meal_item_ids' => $itemIds,
+            'patient_id' => $patient->id,
+            'name' => $patient->user_name,
+            'ai_status' => 'manual',
+            'review_status' => 'pending',
+            'total_calorie' => (float) $mealData['total_calorie'],
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => 'บันทึกอาหารเรียบร้อย',
+        'data' => $result,
+    ], 201);
+}
+
 }
