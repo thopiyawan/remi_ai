@@ -3717,7 +3717,7 @@ public function patient_conversation_detail(Request $request)
     // ----------------------------------
 
     $patient = DB::table('users_register as p')
-        ->where('p.id', $input['user_id'])
+        ->where('p.user_id', $input['user_id'])
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
