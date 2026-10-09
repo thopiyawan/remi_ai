@@ -3437,4 +3437,243 @@ public function insert_food(Request $request)
     ], 201);
 }
 
+public function doctor_patient_conversations(Request $request)
+{
+    $input = $request->validate([
+        'doctor_id' => 'required|string|max:255',
+        'keyword' => 'nullable|string|max:255',
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'sender_id' => 'nullable|string|max:255',
+        'page' => 'sometimes|integer|min:1',
+        'per_page' => 'sometimes|integer|min:1|max:100',
+    ]);
+
+    $doctorId = $input['doctor_id'];
+
+    /*
+     * รับ doctor_id จากหน้าเว็บ
+     * บนระบบจริงต้องตรงกับแพทย์ที่ล็อกอิน
+     */
+    if (!app()->environment('local')) {
+        $loggedInDoctorId = Session::get('doctor_id');
+
+        if ($loggedInDoctorId === null || $loggedInDoctorId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+            ], 401);
+        }
+
+        if ((string) $loggedInDoctorId !== (string) $doctorId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่มีสิทธิ์เข้าถึงกลุ่มคนไข้ของแพทย์นี้',
+            ], 403);
+        }
+    }
+
+    $doctor = DB::table('doctor')
+        ->where('doctor_id', $doctorId)
+        ->whereNull('deleted_at')
+        ->first(['doctor_id', 'name', 'lastname']);
+
+    if (!$doctor) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบแพทย์',
+        ], 404);
+    }
+
+    // ---------------------------------------
+    // 1. สมาชิกกลุ่ม: คนไข้ที่แพทย์ดูแล
+    // ---------------------------------------
+
+    $patientQuery = DB::table('users_register as p')
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        });
+
+    $members = (clone $patientQuery)
+        ->select(
+            'p.id as patient_id',
+            'p.user_id',
+            'p.user_name as name',
+            'p.hospital_num as hn'
+        )
+        ->orderBy('p.user_name')
+        ->orderBy('p.id')
+        ->get();
+
+    $doctorName = trim($doctor->name . ' ' . $doctor->lastname);
+    $groupName = 'คนไข้ในความดูแลของ ' . $doctorName;
+
+    $memberNames = $members->pluck('name', 'user_id');
+
+    // ---------------------------------------
+    // 2. ข้อความที่เกี่ยวข้องกับคนไข้ในกลุ่ม
+    // รวมข้อความเข้า/ออก เช่น คนไข้คุยกับบอต
+    // ---------------------------------------
+
+    $messageBase = DB::table('log_message as m')
+        ->whereNull('m.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('users_register as p')
+                ->whereNull('p.deleted_at')
+                ->where(function ($match) {
+                    $match->whereColumn('p.user_id', 'm.sender_id')
+                        ->orWhereColumn('p.user_id', 'm.receiver_id');
+                })
+                ->whereExists(function ($relation) use ($doctorId) {
+                    $relation->selectRaw('1')
+                        ->from('personal_doctor_mom as pd')
+                        ->whereColumn('pd.user_id', 'p.user_id')
+                        ->where('pd.doctor_id', $doctorId)
+                        ->whereNull('pd.deleted_at');
+                });
+        });
+
+    // ข้อความล่าสุดทั้งกลุ่ม ไม่ขึ้นกับตัวกรองค้นหา
+    $latest = (clone $messageBase)
+        ->orderByDesc('m.created_at')
+        ->orderByDesc('m.id')
+        ->first([
+            'm.id',
+            'm.sender_id',
+            'm.message',
+            'm.message_type',
+            'm.created_at',
+        ]);
+
+    // ---------------------------------------
+    // 3. ค้นหาข้อความ
+    // ---------------------------------------
+
+    $query = clone $messageBase;
+
+    if (isset($input['keyword']) && $input['keyword'] !== '') {
+        $query->where(
+            'm.message',
+            'like',
+            '%' . $input['keyword'] . '%'
+        );
+    }
+
+    if (isset($input['sender_id']) && $input['sender_id'] !== '') {
+        $query->where('m.sender_id', $input['sender_id']);
+    }
+
+    // ตั้งให้ตรงกับเวลาที่ฐานข้อมูลเก็บจริง
+    $dbTimezone = 'Asia/Bangkok';
+
+    if (!empty($input['start_date'])) {
+        $from = CarbonImmutable::parse(
+            $input['start_date'],
+            'Asia/Bangkok'
+        )->setTimezone($dbTimezone)->toDateTimeString();
+
+        $query->where('m.created_at', '>=', $from);
+    }
+
+    if (!empty($input['end_date'])) {
+        $until = CarbonImmutable::parse(
+            $input['end_date'],
+            'Asia/Bangkok'
+        )->addDay()->setTimezone($dbTimezone)->toDateTimeString();
+
+        $query->where('m.created_at', '<', $until);
+    }
+
+    $messages = $query
+        ->select(
+            'm.id',
+            'm.sender_id',
+            'm.receiver_id',
+            'm.message_type',
+            'm.message',
+            'm.created_at as sent_at'
+        )
+        ->orderByDesc('m.created_at')
+        ->orderByDesc('m.id')
+        ->paginate(
+            (int) ($input['per_page'] ?? 50),
+            ['*'],
+            'page',
+            (int) ($input['page'] ?? 1)
+        );
+
+    $messages->getCollection()->transform(
+        function ($message) use ($memberNames, $doctorId, $doctorName) {
+            $senderId = (string) $message->sender_id;
+
+            $message->sender_name = $memberNames->get($senderId)
+                ?? ($senderId === (string) $doctorId ? $doctorName : null);
+
+            $message->sender_type = $memberNames->has($senderId)
+                ? 'patient'
+                : ($senderId === (string) $doctorId ? 'doctor' : 'unknown');
+
+            // ช่วยระบุว่าข้อความเกี่ยวข้องกับคนไข้คนไหน
+            $message->patient_user_ids = collect([
+                $message->sender_id,
+                $message->receiver_id,
+            ])
+                ->filter(fn ($id) => $memberNames->has((string) $id))
+                ->unique()
+                ->values()
+                ->all();
+
+            $message->read_status = null;
+
+            return $message;
+        }
+    );
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'conversation_list' => [
+                [
+                    'doctor_id' => $doctorId,
+                    'group_name' => $groupName,
+                    'latest_message' => $latest?->message,
+                    'latest_message_type' => $latest?->message_type,
+                    'latest_message_at' => $latest?->created_at,
+                    'unread_count' => null,
+                ],
+            ],
+
+            'group_info' => [
+                'doctor_id' => $doctorId,
+                'name' => $groupName,
+                'type' => 'doctor_patient_cohort',
+                'doctor_name' => $doctorName,
+                'member_count' => $members->count(),
+                'members' => $members,
+                'group_image' => null,
+            ],
+
+            'messages' => [
+                'items' => $messages->items(),
+                'total' => $messages->total(),
+                'current_page' => $messages->currentPage(),
+                'per_page' => $messages->perPage(),
+                'last_page' => $messages->lastPage(),
+            ],
+
+            'search' => [
+                'keyword' => $input['keyword'] ?? null,
+                'start_date' => $input['start_date'] ?? null,
+                'end_date' => $input['end_date'] ?? null,
+                'sender_id' => $input['sender_id'] ?? null,
+            ],
+        ],
+    ]);
+}
 }

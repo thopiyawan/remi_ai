@@ -203,4 +203,6 @@ Route::post('/get_diabetes_history', [ApiController::class, 'patient_diabetes_hi
 Route::post('/food_review_queue', [ApiController::class, 'food_review_queue']);
 Route::post('/food_review_detail', [ApiController::class, 'food_review_detail']);
 
+Route::post('/doctor_patient_conversations', [ApiController::class, 'doctor_patient_conversations']);
+
 Route::post('/insert_food', [ApiController::class, 'insert_food']);
