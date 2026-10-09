@@ -3676,4 +3676,258 @@ public function doctor_patient_conversations(Request $request)
         ],
     ]);
 }
+
+public function patient_conversation_detail(Request $request)
+{
+    $input = $request->validate([
+        'doctor_id' => 'required|string|max:255',
+        'patient_id' => 'required|integer|min:1',
+        'keyword' => 'nullable|string|max:255',
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'sender_id' => 'nullable|string|max:255',
+        'page' => 'sometimes|integer|min:1',
+        'per_page' => 'sometimes|integer|min:1|max:100',
+    ]);
+
+    $doctorId = $input['doctor_id'];
+
+    // บนระบบจริงตรวจ doctor_id กับบัญชีที่ล็อกอิน
+    if (!app()->environment('local')) {
+        $sessionDoctorId = Session::get('doctor_id');
+
+        if ($sessionDoctorId === null || $sessionDoctorId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'กรุณาเข้าสู่ระบบแพทย์',
+            ], 401);
+        }
+
+        if ((string) $sessionDoctorId !== (string) $doctorId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่มีสิทธิ์เข้าถึง',
+            ], 403);
+        }
+    }
+
+    // ----------------------------------
+    // 1. ข้อมูลผู้รับบริการและตรวจสิทธิ์
+    // patient_id คือ users_register.id
+    // ----------------------------------
+
+    $patient = DB::table('users_register as p')
+        ->where('p.id', $input['patient_id'])
+        ->whereNull('p.deleted_at')
+        ->whereExists(function ($query) use ($doctorId) {
+            $query->selectRaw('1')
+                ->from('personal_doctor_mom as pd')
+                ->whereColumn('pd.user_id', 'p.user_id')
+                ->where('pd.doctor_id', $doctorId)
+                ->whereNull('pd.deleted_at');
+        })
+        ->select(
+            'p.id',
+            'p.user_id',
+            'p.user_name',
+            'p.hospital_num',
+            'p.user_age',
+            'p.preg_week',
+            'p.history_medicine',
+            'p.compli_diabete',
+            'p.compli_hypertension',
+            'p.compli_preterm_birth',
+            'p.status'
+        )
+        ->first();
+
+    if (!$patient) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ไม่พบผู้รับบริการหรือไม่มีสิทธิ์เข้าถึง',
+        ], 404);
+    }
+
+    $doctor = DB::table('doctor')
+        ->where('doctor_id', $doctorId)
+        ->whereNull('deleted_at')
+        ->first(['name', 'lastname']);
+
+    $doctorName = $doctor
+        ? trim($doctor->name . ' ' . $doctor->lastname)
+        : null;
+
+    // ปรับรหัสให้ตรงกับสถานะในระบบจริง
+    $careStatusLabels = [
+        0 => 'รอตรวจ',
+        1 => 'ดูแลต่อเนื่อง',
+    ];
+
+    // ใช้ 1 = มี ตามสมมติฐานจาก Query ก่อนหน้า
+    $complications = [];
+
+    foreach ([
+        'compli_diabete' => 'เบาหวาน',
+        'compli_hypertension' => 'ความดันโลหิตสูง',
+        'compli_preterm_birth' => 'ภาวะคลอดก่อนกำหนด',
+    ] as $field => $label) {
+        if ((int) $patient->{$field} === 1) {
+            $complications[] = [
+                'code' => $field,
+                'label' => $label,
+            ];
+        }
+    }
+
+    // ----------------------------------
+    // 2. ข้อความเข้า/ออกของผู้รับบริการ
+    // รวมประวัติที่คุยกับบอตด้วย
+    // ----------------------------------
+
+    $messageBase = DB::table('log_message as m')
+        ->whereNull('m.deleted_at')
+        ->where(function ($query) use ($patient) {
+            $query->where('m.sender_id', $patient->user_id)
+                ->orWhere('m.receiver_id', $patient->user_id);
+        });
+
+    // ล่าสุดทั้งหมด ไม่ขึ้นกับตัวกรองค้นหา
+    $latest = (clone $messageBase)
+        ->orderByDesc('m.created_at')
+        ->orderByDesc('m.id')
+        ->first([
+            'm.id',
+            'm.message',
+            'm.message_type',
+            'm.created_at',
+        ]);
+
+    // ----------------------------------
+    // 3. การค้นหา — ทุกฟิลด์เป็นตัวเลือก
+    // ----------------------------------
+
+    $query = clone $messageBase;
+
+    if (isset($input['keyword']) && $input['keyword'] !== '') {
+        $query->where(
+            'm.message',
+            'like',
+            '%' . $input['keyword'] . '%'
+        );
+    }
+
+    if (isset($input['sender_id']) && $input['sender_id'] !== '') {
+        $query->where('m.sender_id', $input['sender_id']);
+    }
+
+    // เปลี่ยนเป็น UTC ถ้า DB เก็บเวลา UTC
+    $dbTimezone = 'Asia/Bangkok';
+
+    if (!empty($input['start_date'])) {
+        $from = CarbonImmutable::parse(
+            $input['start_date'],
+            'Asia/Bangkok'
+        )->setTimezone($dbTimezone)->toDateTimeString();
+
+        $query->where('m.created_at', '>=', $from);
+    }
+
+    if (!empty($input['end_date'])) {
+        $until = CarbonImmutable::parse(
+            $input['end_date'],
+            'Asia/Bangkok'
+        )->addDay()->setTimezone($dbTimezone)->toDateTimeString();
+
+        $query->where('m.created_at', '<', $until);
+    }
+
+    $messages = $query
+        ->select(
+            'm.id',
+            'm.sender_id',
+            'm.receiver_id',
+            'm.message_type',
+            'm.message',
+            'm.created_at as sent_at'
+        )
+        ->orderByDesc('m.created_at')
+        ->orderByDesc('m.id')
+        ->paginate(
+            (int) ($input['per_page'] ?? 50),
+            ['*'],
+            'page',
+            (int) ($input['page'] ?? 1)
+        );
+
+    $messages->getCollection()->transform(
+        function ($message) use ($patient, $doctorId, $doctorName) {
+            $senderId = (string) $message->sender_id;
+
+            if ($senderId === (string) $patient->user_id) {
+                $message->sender_name = $patient->user_name;
+                $message->sender_type = 'patient';
+            } elseif ($senderId === (string) $doctorId) {
+                $message->sender_name = $doctorName;
+                $message->sender_type = 'doctor';
+            } else {
+                // ยังไม่ได้กำหนด mapping รหัสบอต/ผู้ส่งอื่น
+                $message->sender_name = null;
+                $message->sender_type = 'unknown';
+            }
+
+            $message->read_status = null;
+
+            return $message;
+        }
+    );
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'basic_info' => [
+                'patient_id' => (int) $patient->id,
+                'user_id' => $patient->user_id,
+                'name' => $patient->user_name,
+                'gestational_week' => $patient->preg_week,
+                'hn' => $patient->hospital_num,
+                'age' => $patient->user_age,
+                'risk_level' => null,
+            ],
+
+            'health_summary' => [
+                // ไม่มีรายการวินิจฉัยที่ยืนยันแยกต่างหากใน SQL
+                'important_diagnoses' => null,
+                'recorded_complications' => $complications,
+                'drug_allergy_history' => null,
+                'history_medicine_raw' => $patient->history_medicine,
+                'care_status_code' => (int) $patient->status,
+                'care_status' =>
+                    $careStatusLabels[(int) $patient->status]
+                    ?? 'สถานะอื่น',
+            ],
+
+            'conversation_summary' => [
+                'latest_message' => $latest?->message,
+                'latest_message_type' => $latest?->message_type,
+                'latest_message_at' => $latest?->created_at,
+                'unread_count' => null,
+            ],
+
+            'messages' => [
+                'items' => $messages->items(),
+                'total' => $messages->total(),
+                'current_page' => $messages->currentPage(),
+                'per_page' => $messages->perPage(),
+                'last_page' => $messages->lastPage(),
+            ],
+
+            'search' => [
+                'keyword' => $input['keyword'] ?? null,
+                'start_date' => $input['start_date'] ?? null,
+                'end_date' => $input['end_date'] ?? null,
+                'sender_id' => $input['sender_id'] ?? null,
+            ],
+        ],
+    ]);
+}
 }
