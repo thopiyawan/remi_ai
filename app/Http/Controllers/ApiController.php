@@ -3681,7 +3681,7 @@ public function patient_conversation_detail(Request $request)
 {
     $input = $request->validate([
         'doctor_id' => 'required|string|max:255',
-        'patient_id' => 'required|integer|min:1',
+        'user_id' => 'required|string|max:255',
         'keyword' => 'nullable|string|max:255',
         'start_date' => 'nullable|date_format:Y-m-d',
         'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
@@ -3717,7 +3717,7 @@ public function patient_conversation_detail(Request $request)
     // ----------------------------------
 
     $patient = DB::table('users_register as p')
-        ->where('p.id', $input['patient_id'])
+        ->where('p.id', $input['user_id'])
         ->whereNull('p.deleted_at')
         ->whereExists(function ($query) use ($doctorId) {
             $query->selectRaw('1')
